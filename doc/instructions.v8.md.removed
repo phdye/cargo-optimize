@@ -1,0 +1,207 @@
+# Essential Instructions v8
+
+## Project Context
+- **Project**: cargo-optimize (automated Rust build optimization)
+- **Root**: `C:\-\cygwin\root\home\phdyex\my-repos\cargo-optimize`
+- **Design**: `<project-root>/doc/Cargo-Optimize-Design.md`
+
+## CRITICAL: Context Boundaries
+
+### Two Distinct Contexts - DO NOT CONFUSE
+
+#### Context A: PRODUCT FUNCTIONALITY
+**What cargo-optimize DOES for its users**
+- Creates optimization scripts for end users
+- Generates automated build configurations
+- Produces shell scripts and config files
+- Automates build optimization processes
+
+#### Context B: DEVELOPMENT WORK
+**Working ON cargo-optimize itself**
+- Fixing compilation errors
+- Resolving warnings
+- Modifying source code
+- Maintaining the project
+
+### Context Identification
+
+**Before ANY action, identify the context:**
+
+```
+Am I being asked to fix code/errors/warnings?
+├─ YES → DEVELOPMENT CONTEXT → Use direct file editing
+└─ NO → Am I designing optimization features?
+         ├─ YES → PRODUCT CONTEXT → Design script generation
+         └─ NO → Follow standard practices
+```
+
+### Development Context Rules (CRITICAL)
+
+When in DEVELOPMENT context:
+1. **ALWAYS use direct file editing tools**
+2. **NEVER create intermediate scripts**
+3. **Follow the systematic approach:**
+   - Read file with `Filesystem:read_file`
+   - Create backup (rename to .bkp)
+   - Edit file with `Filesystem:edit_file`
+   - Verify result
+4. **No shell scripts for fixing code**
+5. **Report what was DONE, not what to DO**
+
+**Red Flags - STOP if you're about to write:**
+- "Run this script to fix the errors"
+- "Here's a bash script to resolve warnings"
+- "Execute this to apply fixes"
+
+## Conversation Progress Tracking
+
+Each conversation should maintain a progress file to enable seamless continuation:
+
+### Progress File Location
+```
+issue/<topic>/NNN/conversation_progress.md
+```
+
+### Progress File Format
+```markdown
+# Conversation Progress - <Topic> Issue <NNN>
+
+## Status: [ACTIVE|PAUSED|COMPLETED|BLOCKED]
+
+## Current Objective
+<Brief description of what we're working on>
+
+## Context Declaration
+[DEVELOPMENT|PRODUCT] - <explanation>
+
+## Completed Tasks
+- [ ] Task 1: Description
+- [x] Task 2: Description (completed)
+- [ ] Task 3: Description
+
+## Next Steps
+1. Immediate next action
+2. Follow-up tasks
+3. Potential blockers
+
+## Context
+<Key decisions, discoveries, or constraints discovered>
+
+## Files Modified
+- path/to/file1.rs (what was changed)
+- path/to/file2.toml (what was changed)
+
+## Commands Run
+```bash
+# Last successful commands
+cargo test
+cargo clippy
+```
+
+## Notes
+<Important information for continuation>
+
+Last Updated: <timestamp>
+```
+
+### Usage Pattern
+1. **Start of conversation**: Check for existing progress file
+2. **During conversation**: Update progress as we complete tasks
+3. **End of conversation**: Save current state and next steps
+4. **Resume conversation**: Reference progress file to understand context
+
+## Behavioral Constraints
+
+### Response Style
+- Don't start with pleasantries ("Great question!", "Excellent!", etc.)
+- Be direct and concise
+- No bullet points in casual conversation
+- Use prose paragraphs for explanations/reports instead of lists
+
+### Web Search Decision Rules
+- **Never search**: Stable info, fundamental concepts, definitions, history
+- **Answer first, then offer search**: Annual-update data, people I know about
+- **Search immediately**: Real-time data, recent events, unknown entities
+- Scale tool calls: 1 for simple facts, 5+ for complex research
+
+### Citations (when using web search)
+- Use `claim` format
+- Maximum ONE quote per response, under 15 words, in quotation marks
+- Never reproduce 20+ word chunks or song lyrics
+
+### Past Chat Tools
+- `conversation_search(query)`: Topic/keyword search with substantive terms only
+- `recent_chats(n, before, after, sort_order)`: Time-based retrieval  
+- Use when user references past conversations or shared context
+
+### Artifacts
+- Use for: substantial code, creative writing, structured content >20 lines
+- One artifact per response maximum
+- Never use localStorage/sessionStorage in HTML/React artifacts
+
+## Project-Specific Rules
+
+### File Operations
+**Critical**: All scripts must be run from project root and include this validation:
+```bash
+if [ ! -f "Cargo.toml" ] || [ ! -d "src" ] || [ ! -d "issue" ]; then
+    echo "ERROR: This script must be run from the project root directory"
+    exit 1
+fi
+```
+
+### File Editing Protocol (DEVELOPMENT CONTEXT)
+When fixing bugs/errors/warnings:
+1. Check `<filename>~` doesn't exist (if it does, stop immediately)
+2. Create backup: `<filename>~`
+3. Edit: `<filename>.new`
+4. If correct: move `.new` to `<filename>`, move `~` to `.bkp`
+5. If incorrect: move `.new` to `.bad`, restore `~` to `<filename>`
+
+### Error Resolution Strategy
+**Critical**: Follow the systematic database-driven approach documented in `<project-root>/doc/Error-Resolution-Strategy.md` when fixing compilation errors.
+
+**Quick Reference**:
+1. **Analyze first** - Read all errors for a file, understand what needs fixing, make notes
+2. **Edit from bottom to top** - Preserves line numbers so all error references remain accurate  
+3. **Verify after each file** - Ensure fixes are correct before moving to next file
+
+**For Complex Error Situations**: Use the full error database methodology from Error-Resolution-Strategy.md instead of ad-hoc fixes.
+
+### Path Context
+- Cygwin paths: `/home/phdyex/...` 
+- Windows paths: `C:\-\cygwin\root\home\phdyex\...`
+
+### Artifact Storage
+**Critical**: Every resolution/solution artifact must be stored under `issue/<category>/<NNN>/` if not already destined elsewhere.
+
+Examples:
+- `issue/check/001/` - Build check fixes and verification scripts
+- `issue/test/003/` - Test-related solutions and validation
+- `issue/optimization/005/` - Performance improvement artifacts
+
+### Testing Requirements
+- Run `cargo fmt` and `cargo clippy` before commits
+- Focus on >90% coverage for optimization logic
+- Include performance benchmarks with `criterion`
+- Test on real projects for build time improvements
+
+## Context Guards
+
+### The Golden Rule
+**If touching actual .rs files to fix issues → ALWAYS DIRECT EDITING**
+
+### Remember
+The fact that cargo-optimize CREATES scripts doesn't mean we USE scripts to develop it.
+
+- Mechanics don't drive cars to fix cars
+- Chefs don't eat food to cook food  
+- We don't write scripts to fix script-generators
+
+**When developing cargo-optimize: DIRECT ACTION ONLY**
+
+## Version History
+- v7: Original instructions
+- v8: Added critical context boundaries to prevent script creation when doing development work
+
+*Everything else (being helpful, accurate, using tools properly, following up, etc.) I do naturally.*

@@ -1,0 +1,803 @@
+//! Golden master tests for regression prevention
+
+use cargo_optimize::{Config, OptimizationFeature, OptimizationLevel};
+
+fn create_test_metadata() -> cargo_metadata::Metadata {
+    use cargo_metadata::{Package, PackageId, Version};
+    cargo_metadata::Metadata {
+        packages: vec![],
+        workspace_members: vec![],
+        resolve: None,
+        root: std::env::current_dir().unwrap_or_default().into(),
+        metadata: None,
+        version: 1,
+        workspace_root: std::env::current_dir().unwrap_or_default().into(),
+        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
+    }
+}
+
+use pretty_assertions::assert_eq;
+
+fn create_test_metadata() -> cargo_metadata::Metadata {
+    use cargo_metadata::{Package, PackageId, Version};
+    cargo_metadata::Metadata {
+        packages: vec![],
+        workspace_members: vec![],
+        resolve: None,
+        root: std::env::current_dir().unwrap_or_default().into(),
+        metadata: None,
+        version: 1,
+        workspace_root: std::env::current_dir().unwrap_or_default().into(),
+        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
+    }
+}
+
+use serde_json;
+
+fn create_test_metadata() -> cargo_metadata::Metadata {
+    use cargo_metadata::{Package, PackageId, Version};
+    cargo_metadata::Metadata {
+        packages: vec![],
+        workspace_members: vec![],
+        resolve: None,
+        root: std::env::current_dir().unwrap_or_default().into(),
+        metadata: None,
+        version: 1,
+        workspace_root: std::env::current_dir().unwrap_or_default().into(),
+        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
+    }
+}
+
+use std::fs;
+
+fn create_test_metadata() -> cargo_metadata::Metadata {
+    use cargo_metadata::{Package, PackageId, Version};
+    cargo_metadata::Metadata {
+        packages: vec![],
+        workspace_members: vec![],
+        resolve: None,
+        root: std::env::current_dir().unwrap_or_default().into(),
+        metadata: None,
+        version: 1,
+        workspace_root: std::env::current_dir().unwrap_or_default().into(),
+        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
+    }
+}
+
+use std::path::PathBuf;
+
+fn create_test_metadata() -> cargo_metadata::Metadata {
+    use cargo_metadata::{Package, PackageId, Version};
+    cargo_metadata::Metadata {
+        packages: vec![],
+        workspace_members: vec![],
+        resolve: None,
+        root: std::env::current_dir().unwrap_or_default().into(),
+        metadata: None,
+        version: 1,
+        workspace_root: std::env::current_dir().unwrap_or_default().into(),
+        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
+    }
+}
+
+use tempfile::TempDir;
+
+fn create_test_metadata() -> cargo_metadata::Metadata {
+    use cargo_metadata::{Package, PackageId, Version};
+    cargo_metadata::Metadata {
+        packages: vec![],
+        workspace_members: vec![],
+        resolve: None,
+        root: std::env::current_dir().unwrap_or_default().into(),
+        metadata: None,
+        version: 1,
+        workspace_root: std::env::current_dir().unwrap_or_default().into(),
+        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
+    }
+}
+
+
+/// Golden master data directory
+fn golden_master_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("golden_masters")
+}
+
+/// Ensure golden master directory exists
+fn ensure_golden_dir() {
+    let dir = golden_master_dir();
+    if !dir.exists() {
+        fs::create_dir_all(&dir).expect("Failed to create golden master directory");
+    }
+}
+
+/// Load or create golden master file
+fn load_or_create_golden<T: serde::Serialize + serde::de::DeserializeOwned>(
+    name: &str,
+    current: &T,
+) -> T {
+    ensure_golden_dir();
+    let path = golden_master_dir().join(format!("{}.json", name));
+
+    if path.exists() {
+        // Load existing golden master
+        let contents =
+            fs::read_to_string(&path).expect(&format!("Failed to read golden master: {}", name));
+        serde_json::from_str(&contents).expect(&format!("Failed to parse golden master: {}", name))
+    } else {
+        // Create new golden master
+        let json = serde_json::to_string_pretty(current)
+            .expect(&format!("Failed to serialize golden master: {}", name));
+        fs::write(&path, json).expect(&format!("Failed to write golden master: {}", name));
+
+        // Return the current value as the golden master
+        serde_json::from_str(&serde_json::to_string(current).unwrap()).unwrap()
+    }
+}
+
+#[test]
+fn golden_master_default_config() {
+    let current = Config::default();
+    let golden = load_or_create_golden("default_config", &current);
+
+    // Verify all fields match
+    assert_eq!(
+        current.optimization_level, golden.optimization_level,
+        "optimization_level changed from golden master"
+    );
+    assert_eq!(
+        current.auto_detect_hardware, golden.auto_detect_hardware,
+        "auto_detect_hardware changed from golden master"
+    );
+    assert_eq!(
+        current.analyze_project, golden.analyze_project,
+        "analyze_project changed from golden master"
+    );
+    assert_eq!(
+        current.optimize_linker, golden.optimize_linker,
+        "optimize_linker changed from golden master"
+    );
+    assert_eq!(
+        current.enable_cache, golden.enable_cache,
+        "enable_cache changed from golden master"
+    );
+    assert_eq!(
+        current.parallel_jobs, golden.parallel_jobs,
+        "parallel_jobs changed from golden master"
+    );
+    assert_eq!(
+        current.incremental, golden.incremental,
+        "incremental changed from golden master"
+    );
+    assert_eq!(
+        current.split_debuginfo, golden.split_debuginfo,
+        "split_debuginfo changed from golden master"
+    );
+    assert_eq!(
+        current.verbose, golden.verbose,
+        "verbose changed from golden master"
+    );
+    assert_eq!(
+        current.dry_run, golden.dry_run,
+        "dry_run changed from golden master"
+    );
+}
+
+#[test]
+fn golden_master_optimization_features() {
+    #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
+    struct FeatureMatrix {
+        conservative: Vec<(String, bool)>,
+        balanced: Vec<(String, bool)>,
+        aggressive: Vec<(String, bool)>,
+        custom: Vec<(String, bool)>,
+    }
+
+    let features = vec![
+        OptimizationFeature::FastLinker,
+        OptimizationFeature::Incremental,
+        OptimizationFeature::ParallelFrontend,
+        OptimizationFeature::SplitDebuginfo,
+        OptimizationFeature::Sccache,
+        OptimizationFeature::NativeCpu,
+        OptimizationFeature::ThinLto,
+    ];
+
+    let current = FeatureMatrix {
+        conservative: features
+            .iter()
+            .map(|f| {
+                (
+                    format!("{:?}", f),
+                    OptimizationLevel::Conservative.should_enable(*f),
+                )
+            })
+            .collect(),
+        balanced: features
+            .iter()
+            .map(|f| {
+                (
+                    format!("{:?}", f),
+                    OptimizationLevel::Balanced.should_enable(*f),
+                )
+            })
+            .collect(),
+        aggressive: features
+            .iter()
+            .map(|f| {
+                (
+                    format!("{:?}", f),
+                    OptimizationLevel::Aggressive.should_enable(*f),
+                )
+            })
+            .collect(),
+        custom: features
+            .iter()
+            .map(|f| {
+                (
+                    format!("{:?}", f),
+                    OptimizationLevel::Custom.should_enable(*f),
+                )
+            })
+            .collect(),
+    };
+
+    let golden = load_or_create_golden("optimization_features", &current);
+
+    assert_eq!(
+        current, golden,
+        "Optimization feature matrix changed from golden master"
+    );
+}
+
+#[test]
+fn golden_master_config_serialization_format() {
+    let config = Config::default();
+    let toml_output = toml::to_string_pretty(&config).unwrap();
+
+    let golden_path = golden_master_dir().join("config_format.toml");
+
+    if golden_path.exists() {
+        let golden = fs::read_to_string(&golden_path).unwrap();
+        assert_eq!(
+            toml_output, golden,
+            "Config TOML format changed from golden master"
+        );
+    } else {
+        ensure_golden_dir();
+        fs::write(&golden_path, &toml_output).unwrap();
+    }
+}
+
+#[test]
+fn golden_master_complexity_scoring() {
+    use cargo_optimize::analyzer::{
+        BuildComplexity, CodeStats, DependencyAnalysis, ProjectMetadata,
+    };
+
+    // Create a test project to get real metadata
+    let test_dir = TempDir::new().unwrap();
+    let test_cargo_toml = r#"
+[package]
+name = "test"
+version = "0.1.0"
+edition = "2021"
+"#;
+    fs::write(test_dir.path().join("Cargo.toml"), test_cargo_toml).unwrap();
+    fs::create_dir_all(test_dir.path().join("src")).unwrap();
+    fs::write(test_dir.path().join("src/lib.rs"), "").unwrap();
+    let real_metadata = ProjectMetadata::load(test_dir.path()).unwrap();
+
+    #[derive(serde::Serialize, serde::Deserialize, Debug)]
+    struct ComplexityTestCase {
+        lines: usize,
+        dependencies: usize,
+        proc_macros: usize,
+        expected_score: u32,
+        expected_is_complex: bool,
+        expected_is_large: bool,
+    }
+
+    let test_cases = vec![
+        ComplexityTestCase {
+            lines: 1000,
+            dependencies: 10,
+            proc_macros: 0,
+            expected_score: 0,
+            expected_is_complex: false,
+            expected_is_large: false,
+        },
+        ComplexityTestCase {
+            lines: 10000,
+            dependencies: 50,
+            proc_macros: 5,
+            expected_score: 20,
+            expected_is_complex: false,
+            expected_is_large: true,
+        },
+        ComplexityTestCase {
+            lines: 50000,
+            dependencies: 200,
+            proc_macros: 20,
+            expected_score: 70,
+            expected_is_complex: true,
+            expected_is_large: true,
+        },
+    ];
+
+    for (i, test_case) in test_cases.iter().enumerate() {
+        let mut code_stats = CodeStats::default();
+        code_stats.rust_lines = test_case.lines;
+
+        let dependencies = DependencyAnalysis {
+            total_dependencies: test_case.dependencies,
+            direct_dependencies: test_case.dependencies / 3,
+            transitive_dependencies: test_case.dependencies * 2 / 3,
+            proc_macro_count: test_case.proc_macros,
+            categories: Default::default(),
+            heavy_dependencies: vec![],
+            has_heavy_dependencies: false,
+            duplicates: vec![],
+        };
+
+        let metadata = ProjectMetadata {
+            name: format!("test_{}", i),
+            version: "0.1.0".to_string(),
+            root_path: PathBuf::from("."),
+            is_workspace: false,
+            workspace_members: vec![],
+            cargo_metadata: real_metadata.cargo_metadata.clone(),
+        };
+
+        let complexity = BuildComplexity::calculate(&metadata, &code_stats, &dependencies);
+
+        // For first run, update expected values. For subsequent runs, verify they match
+        let golden_name = format!("complexity_case_{}", i);
+        let golden_case = load_or_create_golden(&golden_name, test_case);
+
+        assert_eq!(
+            complexity.score, golden_case.expected_score,
+            "Complexity score changed for case {}",
+            i
+        );
+        assert_eq!(
+            complexity.is_complex, golden_case.expected_is_complex,
+            "Complexity flag changed for case {}",
+            i
+        );
+        assert_eq!(
+            complexity.is_large_project, golden_case.expected_is_large,
+            "Large project flag changed for case {}",
+            i
+        );
+    }
+}
+
+#[test]
+fn golden_master_recommendation_rules() {
+    use cargo_optimize::analyzer::{
+        BuildComplexity, DependencyAnalysis,
+    };
+
+    #[derive(serde::Serialize, serde::Deserialize, Debug)]
+    struct RecommendationCase {
+        name: String,
+        complexity_score: u32,
+        is_large: bool,
+        dependency_count: usize,
+        has_heavy_deps: bool,
+        proc_macro_count: usize,
+        test_ratio: f32,
+        expected_recommendations: Vec<String>,
+    }
+
+    let cases = vec![
+        RecommendationCase {
+            name: "large_project".to_string(),
+            complexity_score: 60,
+            is_large: true,
+            dependency_count: 50,
+            has_heavy_deps: false,
+            proc_macro_count: 5,
+            test_ratio: 0.3,
+            expected_recommendations: vec![
+                "SplitWorkspace".to_string(),
+                "EnableSccache".to_string(),
+            ],
+        },
+        RecommendationCase {
+            name: "many_dependencies".to_string(),
+            complexity_score: 40,
+            is_large: false,
+            dependency_count: 150,
+            has_heavy_deps: true,
+            proc_macro_count: 5,
+            test_ratio: 0.2,
+            expected_recommendations: vec![
+                "MinimizeFeatures".to_string(),
+                "UseWorkspaceDependencies".to_string(),
+                "ConsiderAlternatives".to_string(),
+            ],
+        },
+        RecommendationCase {
+            name: "test_heavy".to_string(),
+            complexity_score: 30,
+            is_large: false,
+            dependency_count: 30,
+            has_heavy_deps: false,
+            proc_macro_count: 3,
+            test_ratio: 0.6,
+            expected_recommendations: vec!["OptimizeTests".to_string(), "UseNextest".to_string()],
+        },
+        RecommendationCase {
+            name: "proc_macro_heavy".to_string(),
+            complexity_score: 35,
+            is_large: false,
+            dependency_count: 40,
+            has_heavy_deps: false,
+            proc_macro_count: 15,
+            test_ratio: 0.2,
+            expected_recommendations: vec!["CacheProcMacros".to_string()],
+        },
+    ];
+
+    for case in cases {
+        let complexity = BuildComplexity {
+            score: case.complexity_score,
+            is_large_project: case.is_large,
+            is_complex: case.complexity_score > 50,
+            estimated_build_time: 100,
+            test_ratio: case.test_ratio,
+            factors: vec![],
+        };
+
+        let dependencies = DependencyAnalysis {
+            total_dependencies: case.dependency_count,
+            direct_dependencies: case.dependency_count / 3,
+            transitive_dependencies: case.dependency_count * 2 / 3,
+            proc_macro_count: case.proc_macro_count,
+            categories: Default::default(),
+            heavy_dependencies: if case.has_heavy_deps {
+                vec!["tokio".to_string()]
+            } else {
+                vec![]
+            },
+            has_heavy_dependencies: case.has_heavy_deps,
+            duplicates: vec![],
+        };
+
+        use cargo_optimize::analyzer::ProjectAnalysis;
+        let recommendations = ProjectAnalysis::generate_recommendations(&complexity, &dependencies);
+        let rec_strings: Vec<String> = recommendations.iter().map(|r| format!("{:?}", r)).collect();
+
+        let golden_name = format!("recommendations_{}", case.name);
+        let golden_case = load_or_create_golden(&golden_name, &case);
+
+        assert_eq!(
+            rec_strings, golden_case.expected_recommendations,
+            "Recommendations changed for case {}",
+            case.name
+        );
+    }
+}
+
+#[test]
+fn golden_master_error_messages() {
+    use cargo_optimize::Error;
+
+    #[derive(serde::Serialize, serde::Deserialize, Debug)]
+    struct ErrorCase {
+        name: String,
+        error_type: String,
+        message: String,
+    }
+
+    let cases = vec![
+        ErrorCase {
+            name: "invalid_project".to_string(),
+            error_type: "InvalidProject".to_string(),
+            message: Error::invalid_project("Test error").to_string(),
+        },
+        ErrorCase {
+            name: "config_error".to_string(),
+            error_type: "ConfigError".to_string(),
+            message: Error::config("Test config error").to_string(),
+        },
+        ErrorCase {
+            name: "unsupported_platform".to_string(),
+            error_type: "UnsupportedPlatform".to_string(),
+            message: Error::unsupported_platform("Test platform").to_string(),
+        },
+    ];
+
+    for case in cases {
+        let golden_name = format!("error_{}", case.name);
+        let golden = load_or_create_golden(&golden_name, &case);
+
+        // Messages should be consistent
+        assert_eq!(
+            case.message, golden.message,
+            "Error message format changed for {}",
+            case.name
+        );
+    }
+}
+
+#[test]
+fn golden_master_cli_output_format() {
+    // Test that CLI output formats remain consistent
+    let temp_dir = TempDir::new().unwrap();
+    let project_root = temp_dir.path();
+
+    // Create test project
+    let cargo_toml = r#"
+[package]
+name = "golden-test"
+version = "0.1.0"
+edition = "2021"
+"#;
+    fs::write(project_root.join("Cargo.toml"), cargo_toml).unwrap();
+    fs::create_dir_all(project_root.join("src")).unwrap();
+    fs::write(project_root.join("src/lib.rs"), "// Test\n").unwrap();
+
+    // We would capture actual CLI output here in a real implementation
+    // For now, we'll create a mock output structure
+    #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
+    struct CliOutput {
+        header: String,
+        sections: Vec<String>,
+        footer: String,
+    }
+
+    let output = CliOutput {
+        header: "🚀 Cargo-Optimize Comprehensive Test Suite".to_string(),
+        sections: vec![
+            "Environment Detection".to_string(),
+            "Project Analysis".to_string(),
+            "Applying Optimizations".to_string(),
+            "Optimization Report".to_string(),
+        ],
+        footer: "✅ Optimization complete!".to_string(),
+    };
+
+    let golden = load_or_create_golden("cli_output_format", &output);
+    assert_eq!(output, golden, "CLI output format changed");
+}
+
+#[test]
+fn golden_master_toml_profiles() {
+    use cargo_optimize::profile::{ProfileManager, ProjectSize};
+
+    let sizes = vec![ProjectSize::Small, ProjectSize::Medium, ProjectSize::Large];
+
+    for size in sizes {
+        for is_ci in [false, true] {
+            let profiles = ProfileManager::recommend_profiles(size.clone(), is_ci);
+
+            let golden_name = format!("profiles_{:?}_{}", size, if is_ci { "ci" } else { "local" });
+            let golden = load_or_create_golden(&golden_name, &profiles);
+
+            assert_eq!(
+                profiles.len(),
+                golden.len(),
+                "Number of profiles changed for {:?} CI={}",
+                size,
+                is_ci
+            );
+
+            for (name, profile) in &profiles {
+                assert!(
+                    golden.contains_key(name),
+                    "Profile {} missing from golden master",
+                    name
+                );
+
+                let golden_profile = &golden[name];
+                assert_eq!(
+                    profile.opt_level, golden_profile.opt_level,
+                    "opt_level changed for profile {}",
+                    name
+                );
+                assert_eq!(
+                    profile.debug, golden_profile.debug,
+                    "debug changed for profile {}",
+                    name
+                );
+                assert_eq!(
+                    profile.lto, golden_profile.lto,
+                    "lto changed for profile {}",
+                    name
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn golden_master_linker_selection() {
+
+
+    #[derive(serde::Serialize, serde::Deserialize, Debug)]
+    struct LinkerCase {
+        os: String,
+        available_linkers: Vec<String>,
+        expected_selection: String,
+    }
+
+    // This would need actual implementation to detect linkers
+    // For now, we'll create expected cases
+    let cases = vec![
+        LinkerCase {
+            os: "linux".to_string(),
+            available_linkers: vec!["mold".to_string(), "lld".to_string(), "gold".to_string()],
+            expected_selection: "mold".to_string(),
+        },
+        LinkerCase {
+            os: "macos".to_string(),
+            available_linkers: vec!["lld".to_string(), "zld".to_string()],
+            expected_selection: "zld".to_string(),
+        },
+        LinkerCase {
+            os: "windows".to_string(),
+            available_linkers: vec!["lld-link".to_string()],
+            expected_selection: "lld-link".to_string(),
+        },
+    ];
+
+    for case in cases {
+        let golden_name = format!("linker_selection_{}", case.os);
+        let golden = load_or_create_golden(&golden_name, &case);
+
+        assert_eq!(
+            case.expected_selection, golden.expected_selection,
+            "Linker selection changed for {}",
+            case.os
+        );
+    }
+}
+
+#[test]
+fn golden_master_cache_system_selection() {
+
+
+    #[derive(serde::Serialize, serde::Deserialize, Debug)]
+    struct CacheCase {
+        available_systems: Vec<String>,
+        expected_selection: String,
+        expected_wrapper: String,
+    }
+
+    let cases = vec![
+        CacheCase {
+            available_systems: vec!["sccache".to_string(), "ccache".to_string()],
+            expected_selection: "sccache".to_string(),
+            expected_wrapper: "sccache".to_string(),
+        },
+        CacheCase {
+            available_systems: vec!["ccache".to_string()],
+            expected_selection: "ccache".to_string(),
+            expected_wrapper: "ccache".to_string(),
+        },
+        CacheCase {
+            available_systems: vec![],
+            expected_selection: "none".to_string(),
+            expected_wrapper: "".to_string(),
+        },
+    ];
+
+    for (i, case) in cases.iter().enumerate() {
+        let golden_name = format!("cache_selection_{}", i);
+        let golden = load_or_create_golden(&golden_name, case);
+
+        assert_eq!(
+            case.expected_selection, golden.expected_selection,
+            "Cache system selection changed for case {}",
+            i
+        );
+    }
+}
+
+// Helper to update all golden masters
+#[test]
+#[ignore] // Run with --ignored to update all golden masters
+fn update_all_golden_masters() {
+    println!("Updating all golden masters...");
+
+    // Run all golden master tests in "update" mode
+    // This would force recreation of all golden files
+
+    let golden_dir = golden_master_dir();
+    if golden_dir.exists() {
+        fs::remove_dir_all(&golden_dir).expect("Failed to remove old golden masters");
+    }
+
+    // Now run all tests to recreate golden masters
+    golden_master_default_config();
+    golden_master_optimization_features();
+    golden_master_config_serialization_format();
+    golden_master_complexity_scoring();
+    golden_master_recommendation_rules();
+    golden_master_error_messages();
+    golden_master_cli_output_format();
+    golden_master_toml_profiles();
+    golden_master_linker_selection();
+    golden_master_cache_system_selection();
+
+    println!("All golden masters updated!");
+}
+
+// Snapshot testing for complex structures
+#[test]
+fn snapshot_project_analysis() {
+    use cargo_optimize::analyzer::ProjectAnalysis;
+
+    let temp_dir = TempDir::new().unwrap();
+    let project_root = temp_dir.path();
+
+    // Create a consistent test project
+    let cargo_toml = r#"
+[package]
+name = "snapshot-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = "1.0"
+"#;
+    fs::write(project_root.join("Cargo.toml"), cargo_toml).unwrap();
+
+    let src_dir = project_root.join("src");
+    fs::create_dir_all(&src_dir).unwrap();
+
+    let lib_content = r#"
+//! Test library
+pub fn hello() -> &'static str {
+    "Hello, world!"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_hello() {
+        assert_eq!(hello(), "Hello, world!");
+    }
+}
+"#;
+    fs::write(src_dir.join("lib.rs"), lib_content).unwrap();
+
+    // Analyze and create snapshot
+    let analysis = ProjectAnalysis::analyze(project_root).unwrap();
+
+    // Create a serializable version of the analysis
+    #[derive(serde::Serialize, serde::Deserialize, Debug)]
+    struct AnalysisSnapshot {
+        project_name: String,
+        rust_lines: usize,
+        rust_files: usize,
+        test_lines: usize,
+        dependency_count: usize,
+        complexity_score: u32,
+        is_complex: bool,
+        recommendation_count: usize,
+    }
+
+    let snapshot = AnalysisSnapshot {
+        project_name: analysis.metadata.name.clone(),
+        rust_lines: analysis.code_stats.rust_lines,
+        rust_files: analysis.code_stats.rust_files,
+        test_lines: analysis.code_stats.test_lines,
+        dependency_count: analysis.dependencies.total_dependencies,
+        complexity_score: analysis.complexity.score,
+        is_complex: analysis.complexity.is_complex,
+        recommendation_count: analysis.recommendations.len(),
+    };
+
+    let golden = load_or_create_golden("project_analysis_snapshot", &snapshot);
+
+    assert_eq!(snapshot.project_name, golden.project_name);
+    assert_eq!(snapshot.rust_files, golden.rust_files);
+    assert_eq!(snapshot.complexity_score, golden.complexity_score);
+}

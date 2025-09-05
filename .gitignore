@@ -1,0 +1,49 @@
+# Rust build artifacts
+issue/
+/target/
+**/*.rs.bk
+*.pdb
+
+# Cargo
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+/doc/target/
+
+# Backup files
+*.backup
+*.bak
+
+# Test artifacts
+tarpaulin-report.html
+cobertura.xml
+
+# Benchmark results
+/benches/target/
+benchmark-results.txt
+
+# Cache directories
+.cargo-optimize-cache/
+.sccache/
+.ccache/
+
+# Local configuration
+.cargo-optimize.local.toml
+.env
+
+# Coverage reports
+*.profraw
+*.profdata
+coverage/
+lcov.info

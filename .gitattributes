@@ -1,0 +1,38 @@
+# Git attributes for cargo-optimize
+# Ensures consistent line endings and file attributes across platforms
+
+# Default behavior - auto line ending conversion
+* text=auto
+
+# Source code files - always use LF
+*.rs text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+
+# Documentation - always use LF
+*.md text eol=lf
+*.txt text eol=lf
+LICENSE* text eol=lf
+CHANGELOG text eol=lf
+CONTRIBUTING text eol=lf
+
+# Shell scripts - LF line endings, will need execute permission on Unix
+*.sh text eol=lf
+setup.sh text eol=lf
+
+# Windows batch files - CRLF line endings
+*.bat text eol=crlf
+*.cmd text eol=crlf
+setup.bat text eol=crlf
+
+# Binary files - no line ending conversion
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+
+# Git files
+.gitignore text eol=lf
+.gitattributes text eol=lf

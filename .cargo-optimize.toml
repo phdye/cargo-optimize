@@ -1,0 +1,131 @@
+# cargo-optimize configuration file
+# Place this file in your project root as .cargo-optimize.toml
+
+# Optimization level: conservative, balanced, aggressive, or custom
+optimization_level = "balanced"
+
+# Hardware detection - automatically detect CPU cores, memory, etc.
+auto_detect_hardware = true
+
+# Project analysis - analyze code structure and dependencies
+analyze_project = true
+
+# Linker optimization - use fastest available linker
+optimize_linker = true
+
+# Build caching - enable sccache or ccache
+enable_cache = true
+
+# Number of parallel jobs (leave unset for auto-detection)
+# parallel_jobs = 8
+
+# Custom linker path (optional)
+# custom_linker = "/usr/bin/mold"
+
+# Enable incremental compilation
+incremental = true
+
+# Split debuginfo for faster linking
+split_debuginfo = true
+
+# Target CPU for native optimizations (leave unset for auto)
+# target_cpu = "native"
+
+# Additional cargo flags
+extra_cargo_flags = []
+
+# Additional rustc flags
+extra_rustc_flags = []
+
+# Verbose output
+verbose = false
+
+# Dry run mode - show what would be done without making changes
+dry_run = false
+
+# Per-profile overrides
+[profiles.dev]
+opt_level = 0
+debug = true
+debug_assertions = true
+overflow_checks = true
+lto = "off"
+panic = "unwind"
+incremental = true
+codegen_units = 256
+strip = "none"
+
+[profiles.release]
+opt_level = 3
+debug = false
+debug_assertions = false
+overflow_checks = false
+lto = "thin"
+panic = "abort"
+incremental = false
+codegen_units = 1
+strip = "symbols"
+
+[profiles.test]
+opt_level = 0
+debug = true
+debug_assertions = true
+overflow_checks = true
+lto = "off"
+panic = "unwind"
+incremental = true
+codegen_units = 256
+
+[profiles.bench]
+opt_level = 3
+debug = false
+debug_assertions = false
+overflow_checks = false
+lto = "thin"
+panic = "abort"
+incremental = false
+codegen_units = 1
+
+# Platform-specific settings
+[platform.linux]
+preferred_linker = "mold"
+extra_linker_args = ["--as-needed", "--gc-sections"]
+
+[platform.macos]
+preferred_linker = "lld"
+split_debuginfo = "unpacked"
+
+[platform.windows]
+preferred_linker = "lld"
+extra_linker_args = ["/OPT:REF", "/OPT:ICF"]
+
+# CI-specific settings
+[ci]
+max_parallel_jobs = 2
+enable_cache = true
+cache_key_prefix = "ci"
+incremental = false
+
+# Cache settings
+[cache]
+system = "sccache"  # or "ccache", "none"
+max_size_gb = 10
+show_stats = true
+
+# Custom optimization rules based on project size
+[rules]
+# For small projects (<5k lines)
+small_project_threshold = 5000
+small_project_optimizations = ["fast_compile", "minimal_lto"]
+
+# For large projects (>50k lines)  
+large_project_threshold = 50000
+large_project_optimizations = ["split_workspace", "aggressive_cache", "fat_lto"]
+
+# Dependency-specific optimizations
+[dependencies]
+# Skip optimization for these dependencies
+skip_optimization = []
+
+# Use alternative features for these dependencies
+feature_overrides = {}
