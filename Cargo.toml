@@ -31,11 +31,18 @@ path = "src/lib.rs"
 # None needed for MVP library!
 
 [dev-dependencies]
-# Minimal test dependencies
+# Test dependencies for comprehensive testing
 tempfile = "3.0"
+toml = "0.8"
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
 
 [[test]]
 name = "mvp_test"
+harness = false
+
+[[test]]
+name = "comprehensive_test_runner"
 harness = false
 
 [profile.dev]

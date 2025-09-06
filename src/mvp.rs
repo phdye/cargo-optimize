@@ -222,7 +222,11 @@ fn backup_config(config_path: &Path) -> io::Result<PathBuf> {
     Ok(final_backup_path)
 }
 
-fn detect_best_linker() -> Result<String, Box<dyn std::error::Error>> {
+/// Detect the best available linker for the current platform
+/// 
+/// Returns the name of the fastest linker available, or "default" if no fast linker is found.
+/// On Windows, prefers rust-lld. On Linux, prefers mold > lld > gold.
+pub fn detect_best_linker() -> Result<String, Box<dyn std::error::Error>> {
     // Check for Windows (including when running from Cygwin)
     if cfg!(target_os = "windows") {
         // On Windows, rust-lld is available if Rust is installed
@@ -345,4 +349,20 @@ mod tests {
         let backup2 = backup_config(&config_path).unwrap();
         assert_eq!(backup2.file_name().unwrap(), "config.toml.backup.1");
     }
+}
+
+/// Create optimized config at specified path (used by tests)
+pub fn create_optimized_config(config_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let linker = detect_best_linker()?;
+    if linker != "default" {
+        let config_content = get_linker_config(&linker)?;
+        
+        // Create parent directory if it doesn't exist
+        if let Some(parent) = config_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        
+        fs::write(config_path, config_content)?;
+    }
+    Ok(())
 }

@@ -1,5 +1,29 @@
 # Enhanced Error Resolution Strategy
 
+## 🚨 **CRITICAL SHIPPABLE CODE REQUIREMENT**
+
+**MANDATORY**: A resolution cannot be considered complete until `cargo test` completes with **ZERO ERRORS AND ZERO WARNINGS**.
+
+**This is a non-negotiable requirement for shippable code quality.**
+
+All error and warning resolution must achieve:
+- ✅ **Clean compilation**: No compilation errors
+- ✅ **Clean warnings**: No compiler warnings (`#[warn(...)]`)
+- ✅ **All tests pass**: No failing test cases
+- ✅ **Clean output**: No lint violations or deprecation warnings
+
+**Verification Command**: `cargo test` must show:
+```
+Finished `test` profile [unoptimized + debuginfo] target(s) in X.XXs
+running N tests
+... [all test results] ...
+test result: ok. N passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+```
+
+**Both Phase 1 (Errors) AND Phase 2 (Warnings) must achieve this standard.**
+
+---
+
 ## Overview
 Two-phase approach: **Phase 1 (Critical)** fixes compilation errors, **Phase 2 (Quality)** resolves warnings systematically.
 
