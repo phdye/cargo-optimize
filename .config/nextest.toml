@@ -1,0 +1,38 @@
+# nextest configuration for pytest-like output
+# This gives us better test organization and reporting
+
+[profile.default]
+# Show each test with execution time, similar to pytest
+status-level = "pass"
+failure-output = "immediate"
+success-output = "never"
+fail-fast = false
+
+# Nice summary at the end
+final-status-level = "pass"
+
+# Test groups
+slow-timeout = { period = "30s", terminate-after = 2 }
+
+[profile.default.junit]
+# Store test results in JUnit format for CI/CD integration
+path = "target/nextest/default/junit.xml"
+
+[profile.ci]
+# CI-specific settings
+status-level = "pass"
+failure-output = "final"
+success-output = "never"
+fail-fast = false
+retries = { backoff = "exponential", count = 2, delay = "1s" }
+
+[profile.ci.junit]
+path = "target/nextest/ci/junit.xml"
+
+# Test groups for better organization
+[test-groups]
+# Phase 3 Security tests
+security = { max-threads = 4 }
+fuzz = { max-threads = 2 }
+concurrency = { max-threads = 8 }
+chaos = { max-threads = 1 }
