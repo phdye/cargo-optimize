@@ -45,6 +45,10 @@ harness = false
 name = "comprehensive_test_runner"
 harness = false
 
+[[test]]
+name = "phase2_test_runner"
+harness = false
+
 [profile.dev]
 # Fast compilation for development
 codegen-units = 256
