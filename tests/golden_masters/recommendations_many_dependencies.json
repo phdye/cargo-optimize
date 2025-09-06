@@ -1,0 +1,14 @@
+{
+  "name": "many_dependencies",
+  "complexity_score": 40,
+  "is_large": false,
+  "dependency_count": 150,
+  "has_heavy_deps": true,
+  "proc_macro_count": 5,
+  "test_ratio": 0.2,
+  "expected_recommendations": [
+    "MinimizeFeatures",
+    "UseWorkspaceDependencies",
+    "ConsiderAlternatives"
+  ]
+}

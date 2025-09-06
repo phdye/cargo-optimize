@@ -1,56 +1,11 @@
 //! Comprehensive unit tests for the config module
 
 use cargo_optimize::config::{
-
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
-
     Config, LtoConfig, OptimizationFeature, OptimizationLevel, PanicStrategy,
     StripConfig,
 };
-
 use std::path::PathBuf;
-
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
-
 use tempfile::TempDir;
-
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
 
 
 #[test]
@@ -204,8 +159,17 @@ fn test_config_boundary_parallel_jobs() {
     config.set_parallel_jobs(1); // Minimum useful value
     pretty_assertions::assert_eq!(config.parallel_jobs, Some(1));
 
-    config.set_parallel_jobs(usize::MAX); // Maximum value
-    pretty_assertions::assert_eq!(config.parallel_jobs, Some(usize::MAX));
+    // The implementation caps at 1000
+    config.set_parallel_jobs(usize::MAX); // Maximum value - gets capped to 1000
+    pretty_assertions::assert_eq!(config.parallel_jobs, Some(1000));
+
+    // Test at the exact limit
+    config.set_parallel_jobs(1000);
+    pretty_assertions::assert_eq!(config.parallel_jobs, Some(1000));
+
+    // Test above the limit
+    config.set_parallel_jobs(2000);
+    pretty_assertions::assert_eq!(config.parallel_jobs, Some(1000));
 }
 
 #[test]

@@ -2,69 +2,11 @@
 
 use cargo_optimize::detector::{CpuInfo, HardwareInfo, MemoryInfo, OsInfo, SystemDetector};
 
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
-
 #[path = "../test_helpers.rs"]
 mod test_helpers;
 use pretty_assertions::assert_eq;
-
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
-
 use std::time::Duration;
-
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
-
 use test_helpers::create_test_hardware_info;
-
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
 
 
 #[test]

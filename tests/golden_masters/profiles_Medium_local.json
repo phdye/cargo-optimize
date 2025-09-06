@@ -1,0 +1,28 @@
+{
+  "Dev": {
+    "profile_type": "Dev",
+    "opt_level": "Zero",
+    "debug": true,
+    "debug_assertions": true,
+    "overflow_checks": true,
+    "lto": "Off",
+    "panic": "Unwind",
+    "incremental": true,
+    "codegen_units": 256,
+    "strip": "None",
+    "split_debuginfo": "Unpacked"
+  },
+  "Release": {
+    "profile_type": "Release",
+    "opt_level": "Three",
+    "debug": false,
+    "debug_assertions": false,
+    "overflow_checks": false,
+    "lto": "Thin",
+    "panic": "Abort",
+    "incremental": false,
+    "codegen_units": 1,
+    "strip": "Symbols",
+    "split_debuginfo": null
+  }
+}

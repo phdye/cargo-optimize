@@ -1,99 +1,33 @@
 //! Golden master tests for regression prevention
 
 use cargo_optimize::{Config, OptimizationFeature, OptimizationLevel};
-
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
-
 use pretty_assertions::assert_eq;
-
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
-
 use serde_json;
-
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
-
 use std::fs;
-
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
-
 use std::path::PathBuf;
-
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
-
 use tempfile::TempDir;
 
+#[allow(dead_code)]
 fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
+    
+    // Create a minimal Metadata struct for testing
+    // Note: Metadata is non-exhaustive, so we can't construct it directly
+    // We need to use MetadataCommand to get a real one
+    let temp_dir = TempDir::new().unwrap();
+    let cargo_toml = r#"
+[package]
+name = "test"
+version = "0.1.0"
+edition = "2021"
+"#;
+    fs::write(temp_dir.path().join("Cargo.toml"), cargo_toml).unwrap();
+    fs::create_dir_all(temp_dir.path().join("src")).unwrap();
+    fs::write(temp_dir.path().join("src/lib.rs"), "").unwrap();
+    
+    cargo_metadata::MetadataCommand::new()
+        .current_dir(temp_dir.path())
+        .exec()
+        .unwrap()
 }
 
 

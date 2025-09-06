@@ -1,0 +1,8 @@
+{
+  "lines": 1000,
+  "dependencies": 10,
+  "proc_macros": 0,
+  "expected_score": 0,
+  "expected_is_complex": false,
+  "expected_is_large": false
+}

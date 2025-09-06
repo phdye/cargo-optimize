@@ -1,87 +1,13 @@
 //! Unit tests for the analyzer module
 
 use cargo_optimize::analyzer::{
-
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
-
     BuildComplexity, CodeStats, ComplexityFactor, DependencyAnalysis, DuplicateDependency,
     ProjectAnalysis, ProjectMetadata, Recommendation,
 };
 use pretty_assertions::assert_eq;
-
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
-
 use std::fs;
-
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
-
 use std::path::PathBuf;
-
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
-
 use tempfile::TempDir;
-
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
 
 
 #[test]

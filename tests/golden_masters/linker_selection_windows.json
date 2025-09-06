@@ -1,0 +1,7 @@
+{
+  "os": "windows",
+  "available_linkers": [
+    "lld-link"
+  ],
+  "expected_selection": "lld-link"
+}

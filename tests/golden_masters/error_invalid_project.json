@@ -1,0 +1,5 @@
+{
+  "name": "invalid_project",
+  "error_type": "InvalidProject",
+  "message": "Invalid project structure: Test error"
+}

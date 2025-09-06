@@ -1,52 +1,34 @@
-use arbitrary::{Arbitrary, Unstructured};
+//! Fuzz tests for cargo-optimize
 
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
-
-use cargo_optimize::{analyzer::*, Config, OptimizationLevel};
-
-fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
-}
-
+use cargo_optimize::{
+    analyzer::{BuildComplexity, DependencyAnalysis},
+    Config, OptimizationLevel,
+};
 use std::path::PathBuf;
 
+#[allow(dead_code)]
 fn create_test_metadata() -> cargo_metadata::Metadata {
-    use cargo_metadata::{Package, PackageId, Version};
-    cargo_metadata::Metadata {
-        packages: vec![],
-        workspace_members: vec![],
-        resolve: None,
-        root: std::env::current_dir().unwrap_or_default().into(),
-        metadata: None,
-        version: 1,
-        workspace_root: std::env::current_dir().unwrap_or_default().into(),
-        target_directory: std::env::current_dir().unwrap_or_default().join("target").into(),
-    }
+    // Use cargo_metadata::MetadataCommand to create valid metadata
+    use cargo_metadata::MetadataCommand;
+    
+    // Create a temporary minimal Cargo.toml for metadata generation
+    let temp_dir = tempfile::tempdir().unwrap();
+    let cargo_toml = temp_dir.path().join("Cargo.toml");
+    std::fs::write(&cargo_toml, r#"
+[package]
+name = "test-package"
+version = "0.1.0"
+edition = "2021"
+"#).unwrap();
+    
+    std::fs::create_dir_all(temp_dir.path().join("src")).unwrap();
+    std::fs::write(temp_dir.path().join("src/lib.rs"), "").unwrap();
+    
+    MetadataCommand::new()
+        .manifest_path(&cargo_toml)
+        .exec()
+        .unwrap()
 }
-
-
 
 #[test]
 fn fuzz_config_parsing() {
@@ -56,7 +38,7 @@ fn fuzz_config_parsing() {
         b"{\"optimization_level\": \"aggressive\"}",
         b"{\"parallel_jobs\": 999999}",
         b"{\"invalid_field\": true}",
-        b"[invalid]", // Fixed: removed incomplete bracket
+        b"[invalid]",
     ];
 
     for input in test_inputs {

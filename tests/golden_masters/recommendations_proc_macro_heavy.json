@@ -1,0 +1,12 @@
+{
+  "name": "proc_macro_heavy",
+  "complexity_score": 35,
+  "is_large": false,
+  "dependency_count": 40,
+  "has_heavy_deps": false,
+  "proc_macro_count": 15,
+  "test_ratio": 0.2,
+  "expected_recommendations": [
+    "CacheProcMacros"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "os": "linux",
+  "available_linkers": [
+    "mold",
+    "lld",
+    "gold"
+  ],
+  "expected_selection": "mold"
+}

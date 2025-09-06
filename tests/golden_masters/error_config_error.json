@@ -1,0 +1,5 @@
+{
+  "name": "config_error",
+  "error_type": "ConfigError",
+  "message": "Configuration error: Test config error"
+}

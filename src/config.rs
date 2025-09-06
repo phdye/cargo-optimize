@@ -69,6 +69,9 @@ impl Config {
 
     /// Set the number of parallel jobs
     pub fn set_parallel_jobs(&mut self, jobs: usize) -> &mut Self {
+        // Add reasonable bounds - max 1000 parallel jobs
+        // This prevents issues with extreme values like usize::MAX
+        let jobs = jobs.min(1000);
         self.parallel_jobs = Some(jobs);
         self
     }

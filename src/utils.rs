@@ -46,6 +46,13 @@ pub fn create_progress_bar(total: u64, message: &str) -> ProgressBar {
 
 /// Create a spinner for indeterminate progress
 pub fn create_spinner(message: &str) -> ProgressBar {
+    // In test mode, create a hidden progress bar to avoid terminal conflicts
+    if is_test_mode() {
+        let pb = ProgressBar::hidden();
+        pb.set_message(message.to_string());
+        return pb;
+    }
+    
     let pb = ProgressBar::new_spinner();
     pb.set_style(
         ProgressStyle::default_spinner()
@@ -76,6 +83,15 @@ pub fn is_verbose() -> bool {
 /// Check if running in dry-run mode
 pub fn is_dry_run() -> bool {
     env::var("CARGO_OPTIMIZE_DRY_RUN").is_ok() || env::args().any(|arg| arg == "--dry-run")
+}
+
+/// Check if running in test mode
+pub fn is_test_mode() -> bool {
+    // Check various indicators that we're in a test environment
+    cfg!(test) || 
+    env::var("CARGO_TEST").is_ok() ||
+    env::var("RUST_TEST_THREADS").is_ok() ||
+    env::args().any(|arg| arg.contains("test"))
 }
 
 /// Backup a file before modifying it

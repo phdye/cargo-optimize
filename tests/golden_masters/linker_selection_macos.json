@@ -1,0 +1,8 @@
+{
+  "os": "macos",
+  "available_linkers": [
+    "lld",
+    "zld"
+  ],
+  "expected_selection": "zld"
+}

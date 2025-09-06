@@ -131,17 +131,6 @@ impl CacheConfig {
             distributed: false,
             show_stats: true,
         }
-
-    /// Create a configuration with no caching
-    pub fn none() -> Self {
-        Self {
-            system: CacheSystem::None,
-            cache_dir: None,
-            max_size_gb: None,
-            distributed: false,
-            show_stats: false,
-        }
-    }
     }
 
     /// Create a configuration with no caching

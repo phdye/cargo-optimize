@@ -1,0 +1,10 @@
+{
+  "project_name": "snapshot-test",
+  "rust_lines": 15,
+  "rust_files": 1,
+  "test_lines": 0,
+  "dependency_count": 25,
+  "complexity_score": 0,
+  "is_complex": false,
+  "recommendation_count": 0
+}

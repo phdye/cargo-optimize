@@ -1,0 +1,11 @@
+optimization_level = "balanced"
+auto_detect_hardware = true
+analyze_project = true
+optimize_linker = true
+enable_cache = true
+incremental = true
+split_debuginfo = true
+extra_cargo_flags = []
+extra_rustc_flags = []
+verbose = false
+dry_run = false

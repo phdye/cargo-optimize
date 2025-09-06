@@ -1,0 +1,13 @@
+{
+  "name": "large_project",
+  "complexity_score": 60,
+  "is_large": true,
+  "dependency_count": 50,
+  "has_heavy_deps": false,
+  "proc_macro_count": 5,
+  "test_ratio": 0.3,
+  "expected_recommendations": [
+    "SplitWorkspace",
+    "EnableSccache"
+  ]
+}

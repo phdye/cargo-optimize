@@ -1,0 +1,13 @@
+{
+  "name": "test_heavy",
+  "complexity_score": 30,
+  "is_large": false,
+  "dependency_count": 30,
+  "has_heavy_deps": false,
+  "proc_macro_count": 3,
+  "test_ratio": 0.6,
+  "expected_recommendations": [
+    "OptimizeTests",
+    "UseNextest"
+  ]
+}

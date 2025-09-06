@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "CPU target for native optimization: {}",
         env.hardware.cpu_target()
     );
-    println!("Preferred linker: {}", env.hardware.os.preferred_linker());
+    println!("Preferred linker: {}", env.hardware.operating_system.preferred_linker());
 
     // Check for specific features
     println!("\n🔧 Available Features");

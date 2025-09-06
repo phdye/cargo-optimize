@@ -1,0 +1,5 @@
+{
+  "name": "unsupported_platform",
+  "error_type": "UnsupportedPlatform",
+  "message": "Unsupported platform: Test platform"
+}

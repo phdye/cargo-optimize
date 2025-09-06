@@ -1,0 +1,7 @@
+{
+  "available_systems": [
+    "ccache"
+  ],
+  "expected_selection": "ccache",
+  "expected_wrapper": "ccache"
+}

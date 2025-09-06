@@ -273,6 +273,16 @@ mod tests {
 }
 
 /// Configuration for the comprehensive test suite
+#[derive(Debug, Clone)]
+pub struct TestSuiteConfig {
+    pub parallel: bool,
+    pub verbose: bool,
+    pub fail_fast: bool,
+    pub timeout_seconds: u64,
+    pub validate_environment: bool,
+    pub categories: Vec<TestCategory>,
+    pub report_format: ReportFormat,
+}
 
 impl Default for TestSuiteConfig {
     fn default() -> Self {
