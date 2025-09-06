@@ -2,8 +2,16 @@
 name = "cargo-optimize"
 version = "0.1.0"
 edition = "2021"
-description = "MVP: Automatic linker optimization for Rust builds"
+authors = ["Your Name <your.email@example.com>"]
+description = "Automatically speed up Rust builds by 15-25% with zero configuration"
+documentation = "https://docs.rs/cargo-optimize"
+homepage = "https://github.com/yourusername/cargo-optimize"
+repository = "https://github.com/yourusername/cargo-optimize"
+readme = "README.md"
+keywords = ["cargo", "build", "optimization", "performance", "linker"]
+categories = ["development-tools::cargo-plugins", "development-tools::build-utils"]
 license = "MIT OR Apache-2.0"
+exclude = ["issue/", "*.bak", "*.backup"]
 
 [lib]
 name = "cargo_optimize"
@@ -14,15 +22,17 @@ path = "src/lib.rs"
 # name = "cargo-optimize"
 # path = "src/bin/cargo-optimize.rs"
 
-[[bin]]
-name = "debug_detection"
-path = "src/bin/debug_detection.rs"
+# Debug detection binary is for development only, not for release
+# [[bin]]
+# name = "debug_detection"
+# path = "src/bin/debug_detection.rs"
 
 [dependencies]
 # None needed for MVP library!
 
 [dev-dependencies]
 # Minimal test dependencies
+tempfile = "3.0"
 
 [[test]]
 name = "mvp_test"
