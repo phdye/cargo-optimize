@@ -1,269 +1,200 @@
-# Comprehensive Testing Project Plan for Published Functionality
+# Comprehensive Test Strategy
+
+## Purpose
+This strategy ensures comprehensive test coverage is developed systematically through well-organized phases.
 
 ## Risk-Based Testing Matrix
 
 ### Priority Levels
-- **P0 - Critical Path**: Payment processing, authentication, data persistence, security features
-  - *Required Tests*: ALL test types
-- **P1 - Standard Features**: Core business logic, user workflows, API endpoints
-  - *Required Tests*: ALL test types (was: Integration, Boundary, Regression, Performance, Security)
-- **P2 - Low-Risk Features**: UI elements, informational pages, logging
-  - *Required Tests*: Integration, Regression, Accessibility
+- **P0 - Critical Path**: Core functionality, config management, linker detection
+  - *Tests to Develop*: ALL test types
+- **P1 - Standard Features**: Optimization logic, platform detection, caching
+  - *Tests to Develop*: ALL test types
+- **P2 - Low-Risk Features**: CLI output, progress bars, documentation
+  - *Tests to Develop*: Integration, Regression, UI tests
 
-## Checkpoint Protocol (Every ~10% of Resources)
+---
 
-To prevent losing huge swaths of implemented tests when the AI conversation is suddenly cut-off.
+## Phase 1: Foundation Test Development
+**Goal: Write core test infrastructure and critical path tests**
 
-### Required Checkpoint Documentation
+### Development Steps
 
-```yaml
-checkpoint:
-  timestamp: [ISO 8601]
-  progress_percentage: [0-100]
-  tests_completed: 
-    - type: [test_type]
-      count: [number]
-      coverage: [percentage]
-  issues_discovered:
-    - severity: [critical|high|medium|low]
-      description: [brief]
-      ticket_id: [reference]
-  metrics:
-    code_coverage: [percentage]
-    performance_baseline: [metrics]
-    test_execution_time: [duration]
-  next_steps: [immediate_actions]
-  blockers: [list]
-  handoff_notes: [context_for_next_session]
+#### Step 1: Test Infrastructure
+```rust
+// Core test utilities and helpers:
+- tests/common/mod.rs          // Test utilities
+- tests/helpers/mod.rs         // Helper functions  
+- tests/fixtures/mod.rs        // Test fixtures
+```
+
+#### Step 2: Unit Tests
+```rust
+// Basic unit tests
+#[test]
+fn test_config_creation() { /* ... */ }
+#[test] 
+fn test_config_backup() { /* ... */ }
+#[test]
+fn test_config_merge() { /* ... */ }
+
+// Validation tests
+#[test]
+fn test_toml_validation() { /* ... */ }
+#[test]
+fn test_malformed_config() { /* ... */ }
+```
+
+#### Step 3: Integration Tests
+```rust
+// Workflow test
+#[test]
+fn test_complete_workflow() { 
+    // Complete workflow testing
+}
+
+// Complex scenario
+#[test]
+fn test_existing_config_handling() {
+    // Handle existing configurations
+}
+```
+
+### Phase 1 Deliverables
+- All test files compiled and tested
+- Test count documented
+- Next phase test plan ready
+
+---
+
+## Phase 2: Comprehensive Test Development
+**Goal: Write boundary, stress, security, and performance tests**
+
+### Development Steps
+
+#### Step 1: Boundary Tests
+```rust
+// Edge case testing
+#[test]
+fn test_empty_file() { /* ... */ }
+#[test]
+fn test_huge_file() { /* ... */ }
+```
+
+#### Step 2: Stress Tests
+```rust
+#[test]
+fn test_concurrent_access() { 
+    // Complex concurrent test
+}
+```
+
+#### Step 3: Security Tests
+```rust
+// Input validation tests
+#[test]
+fn test_path_traversal() { /* ... */ }
+#[test]
+fn test_injection() { /* ... */ }
 ```
 
 ---
 
-## Phase 1: Foundation & Critical Path Testing
-**Target: 95% of session resources | Checkpoints: Every 10%**
+## Phase 3: Platform & Regression Test Development
+**Goal: Write platform-specific and regression tests**
 
-### Structure
-- **Setup & Environment (10%)**
-  - Configure test environments (staging, pre-prod)
-  - Set up monitoring and logging
-  - Establish baseline metrics
-  - Create test data sets
-  - *Checkpoint 1: Environment ready*
+### Development Steps
 
-- **Integration Tests (25%)**
-  - API contract testing
-  - Service-to-service communication
-  - Database transactions
-  - External service mocking
-  - *Checkpoints 2-3: Integration suite complete*
+#### Step 1: Platform Tests
+```rust
+#[cfg(target_os = "windows")]
+mod windows_tests {
+    // Windows-specific tests
+}
 
-- **Stress & Load Tests (25%)**
-  - Concurrent user simulations
-  - Resource exhaustion scenarios
-  - Memory leak detection
-  - Connection pool testing
-  - *Checkpoints 4-5: Performance baselines established*
-
-- **Boundary Value & Edge Cases (25%)**
-  - Input validation limits
-  - Data type extremes
-  - Empty/null/undefined handling
-  - Maximum length scenarios
-  - *Checkpoints 6-8: Edge cases documented*
-
-- **Documentation & Handoff (10%)**
-  - Test results compilation
-  - Critical issues summary
-  - Rollback procedures
-  - *Checkpoint 9: Phase 1 complete*
-
-### Rollback Criteria
-- Any P0 feature failing >30% of tests
-- Performance degradation >20% from baseline
-- Security vulnerability discovered
-
----
-
-## Phase 2: Quality Assurance & Stability
-**Target: 95% of session resources | Checkpoints: Every 10%**
-
-### Structure
-- **Setup & Review (5%)**
-  - Import Phase 1 results
-  - Update test environments
-  - *Checkpoint 1: Context loaded*
-
-- **Property-Based Testing (30%)**
-  - Invariant identification
-  - Generator configuration
-  - Shrinking strategies
-  - Statistical verification
-  - *Checkpoints 2-4: Properties verified*
-
-- **Regression Test Suite (25%)**
-  - Previous bug scenarios
-  - Feature interaction tests
-  - Backward compatibility
-  - API version testing
-  - *Checkpoints 5-6: Regression suite passing*
-
-- **Performance Testing (25%)**
-  - Response time analysis
-  - Throughput measurement
-  - Resource utilization
-  - Scalability projections
-  - *Checkpoints 7-8: Performance certified*
-
-- **Golden Master Tests (10%)**
-  - Output consistency verification
-  - Snapshot comparisons
-  - Deterministic behavior validation
-  - *Checkpoint 9: Golden masters established*
-
-- **Handoff Package (5%)**
-  - Updated metrics dashboard
-  - Test coverage report
-  - *Checkpoint 10: Phase 2 complete*
-
-### Rollback Criteria
-- Regression test failure rate >15%
-- Performance SLA violations
-- Non-deterministic behavior in critical paths
-
----
-
-## Phase 3: Security & Resilience
-**Target: 95% of session resources | Checkpoints: Every 10%**
-
-### Structure
-- **Security Test Setup (10%)**
-  - OWASP compliance checklist
-  - Penetration test environment
-  - Security scanning tools
-  - *Checkpoint 1: Security suite ready*
-
-- **Fuzz Testing (25%)**
-  - Input mutation strategies
-  - Protocol fuzzing
-  - File format fuzzing
-  - API parameter fuzzing
-  - *Checkpoints 2-3: Fuzzing complete*
-
-- **Security Testing (30%)**
-  - Authentication bypass attempts
-  - Authorization matrix validation
-  - Injection attack scenarios
-  - Encryption verification
-  - *Checkpoints 4-6: Security validated*
-
-- **Concurrency & Race Conditions (20%)**
-  - Deadlock detection
-  - Race condition identification
-  - Transaction isolation testing
-  - *Checkpoints 7-8: Concurrency verified*
-
-- **Chaos Engineering (10%)**
-  - Service failure simulation
-  - Network partition testing
-  - Recovery time validation
-  - *Checkpoint 9: Resilience confirmed*
-
-- **Security Report (5%)**
-  - Vulnerability assessment
-  - Remediation recommendations
-  - *Checkpoint 10: Phase 3 complete*
-
-### Rollback Criteria
-- Critical security vulnerability
-- Data corruption possibility
-- Unrecoverable system state
-
----
-
-## Phase 4: Polish & Production Readiness
-**Target: 95% of session resources | Checkpoints: Every 10%**
-
-### Structure
-- **Accessibility Testing (20%)**
-  - WCAG 2.1 compliance
-  - Screen reader compatibility
-  - Keyboard navigation
-  - Color contrast validation
-  - *Checkpoints 1-2: Accessibility verified*
-
-- **Compatibility Testing (25%)**
-  - Browser matrix testing
-  - Mobile device testing
-  - OS version compatibility
-  - API client versions
-  - *Checkpoints 3-5: Compatibility confirmed*
-
-- **User Acceptance Simulation (20%)**
-  - End-to-end workflows
-  - Real-world data scenarios
-  - Error recovery paths
-  - *Checkpoints 6-7: UAT complete*
-
-- **Performance Optimization (15%)**
-  - Bottleneck remediation
-  - Cache optimization
-  - Query optimization
-  - *Checkpoint 8: Optimizations applied*
-
-- **Final Documentation (15%)**
-  - Complete test report
-  - Deployment checklist
-  - Monitoring setup
-  - Runbook creation
-  - *Checkpoint 9: Documentation complete*
-
-- **Production Readiness Review (5%)**
-  - Go/No-go decision matrix
-  - Rollback procedures verified
-  - *Checkpoint 10: Ready for deployment*
-
-### Production Release Criteria
-- All P0 features: 100% test pass rate
-- All P1 features: 100% test pass rate (was: >95%)
-- All P2 features: 100% test pass rate (was: >90%)
-- Zero critical/high security issues
-- Performance within 10% of targets
-
----
-
-## Emergency Rollback Procedures
-
-### Immediate Rollback Triggers
-1. Data corruption or loss
-2. Security breach detection
-3. >50% performance degradation
-4. Critical feature failure in production
-
-### Rollback Process
-```bash
-1. Trigger emergency notification
-2. Switch traffic to previous version
-3. Preserve current state for debugging
-4. Validate rollback success
-5. Incident report within 2 hours
+#[cfg(target_os = "linux")]
+mod linux_tests {
+    // Linux-specific tests  
+}
 ```
 
-## Continuous Handoff Protocol
+#### Step 2: Regression Tests
+```rust
+// Based on fixed issues
+#[test]
+fn test_issue_001_fix() { /* ... */ }
+#[test]
+fn test_issue_002_fix() { /* ... */ }
+#[test]
+fn test_issue_003_fix() { /* ... */ }
+```
 
-### Session Transition Package
-- Current phase & checkpoint
-- Test execution status
-- Critical issues list
-- Environmental dependencies
-- Next session priorities
-- Access credentials & tokens
-- Contact points for blockers
+---
 
-### Recovery Instructions
-If session terminates unexpectedly:
-1. Load last checkpoint state
-2. Verify environment stability
-3. Resume from last completed test
-4. Update checkpoint with gap analysis
+## Phase 4: Polish & Documentation
+**Goal: Write remaining tests and create test documentation**
 
-This plan ensures comprehensive testing coverage while maintaining efficient resource utilization and enabling seamless handoffs between sessions.
+### Development Steps
+
+#### Step 1: Property-Based Tests
+```rust
+proptest! {
+    #[test]
+    fn test_config_properties(config in any::<ConfigData>()) {
+        // Property test implementation
+    }
+}
+```
+
+#### Step 2: Test Documentation
+```markdown
+# Test Coverage Report
+- Unit Tests: 25 tests ✓
+- Integration: 10 tests ✓
+- Boundary: 8 tests ✓
+[...]
+```
+
+---
+
+## Test Organization
+
+### Directory Structure
+```
+tests/
+├── unit/
+│   ├── config_tests.rs
+│   ├── detector_tests.rs
+│   └── optimizer_tests.rs
+├── integration/
+│   ├── workflow_tests.rs
+│   └── cli_tests.rs
+├── boundary/
+│   └── edge_cases.rs
+├── platform/
+│   ├── windows_tests.rs
+│   └── linux_tests.rs
+├── regression/
+│   └── issue_fixes.rs
+└── common/
+    └── mod.rs
+```
+
+## Test Development Best Practices
+
+1. **Write tests incrementally** - Build test coverage gradually
+2. **Test early and often** - Run tests frequently during development
+3. **Document test purpose** - Clear comments explaining what each test validates
+4. **Use descriptive names** - Test names should clearly indicate what they test
+5. **Keep tests focused** - Each test should validate one specific behavior
+6. **Maintain test independence** - Tests should not depend on execution order
+
+## Coverage Goals
+
+- **Unit Test Coverage**: Minimum 80% line coverage
+- **Integration Coverage**: All major workflows tested
+- **Platform Coverage**: Windows, Linux, macOS tested where applicable
+- **Error Handling**: All error paths have test coverage
+- **Performance**: Key operations have benchmark tests
+
+This strategy ensures comprehensive test coverage while maintaining development efficiency and code quality.

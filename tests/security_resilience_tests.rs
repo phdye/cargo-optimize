@@ -1,4 +1,4 @@
-//! Phase 3: Security & Resilience Tests for cargo-optimize
+//! Security & Resilience Tests for cargo-optimize
 //! 
 //! This module implements comprehensive security testing including:
 //! - Fuzz testing for input validation
@@ -6,19 +6,15 @@
 //! - Concurrency and race condition testing
 //! - Chaos engineering for resilience
 //!
-//! Test execution: cargo nextest run --test phase3_security
+//! Test execution: cargo nextest run --test security_resilience_tests
 
-use cargo_optimize::mvp::{detect_best_linker, create_optimized_config};
+use cargo_optimize::mvp::detect_best_linker;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use tempfile::TempDir;
-
-// ============================================================================
-// CHECKPOINT 1: Security Test Setup (10%)
-// ============================================================================
 
 /// Test fixture for security testing
 struct SecurityTestContext {
@@ -54,10 +50,6 @@ fn test_security_setup() {
     assert!(ctx.project_path().exists());
     assert!(ctx.project_path().join(".cargo").exists());
 }
-
-// ============================================================================
-// CHECKPOINT 2-3: Fuzz Testing (25%)
-// ============================================================================
 
 /// Fuzz test for path validation
 #[test]
@@ -208,10 +200,6 @@ fn test_fuzz_random_bytes() {
     }
 }
 
-// ============================================================================
-// CHECKPOINT 4-6: Security Testing (30%)
-// ============================================================================
-
 /// Test for path traversal prevention
 #[test]
 fn test_security_path_traversal_prevention() {
@@ -325,10 +313,6 @@ fn test_security_env_var_injection() {
     std::env::remove_var("RUSTFLAGS");
 }
 
-// ============================================================================
-// CHECKPOINT 7-8: Concurrency & Race Conditions (20%)
-// ============================================================================
-
 /// Test for race conditions in config file access
 #[test]
 fn test_concurrency_race_condition_config_access() {
@@ -440,14 +424,10 @@ fn test_concurrency_atomic_file_operations() {
     }
 }
 
-// ============================================================================
-// CHECKPOINT 9: Chaos Engineering (10%)
-// ============================================================================
-
 /// Test recovery from random failures
 #[test]
 fn test_chaos_random_failure_injection() {
-    let ctx = SecurityTestContext::new();
+    let _ctx = SecurityTestContext::new();
     
     // Simulate various failure conditions
     let failure_scenarios = vec![
@@ -576,6 +556,7 @@ mod security_utils {
     use std::path::Path;
     
     /// Check if a path is safe to write to
+    #[allow(dead_code)]
     pub fn is_safe_path(path: &Path) -> bool {
         // Must be relative path within project
         if path.is_absolute() {
@@ -593,6 +574,7 @@ mod security_utils {
     }
     
     /// Sanitize user input
+    #[allow(dead_code)]
     pub fn sanitize_input(input: &str) -> String {
         input
             .chars()
@@ -606,19 +588,4 @@ mod security_utils {
 // Test execution verification
 // ============================================================================
 
-#[test]
-fn test_phase3_checkpoint_verification() {
-    println!("Phase 3 Security & Resilience Testing");
-    println!("=====================================");
-    println!("✓ CP1: Security Test Setup (10%)");
-    println!("✓ CP2-3: Fuzz Testing (25%)");
-    println!("✓ CP4-6: Security Testing (30%)");
-    println!("✓ CP7-8: Concurrency & Race Conditions (20%)");
-    println!("✓ CP9: Chaos Engineering (10%)");
-    println!("✓ CP10: Security Report (5%)");
-    println!("=====================================");
-    println!("Phase 3 Complete: 100%");
-}
-
-// Add rand dependency usage
-use rand::Rng as _;
+// rand dependency is used in simulate_operation_with_failure function

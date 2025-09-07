@@ -1,5 +1,5 @@
 // Smoke test for cargo-optimize MVP
-// Used for quick validation during rollbacks and checkpoints
+// Used for quick validation during development
 
 #[test]
 fn smoke_test_basic_functionality() {
@@ -38,6 +38,7 @@ fn smoke_test_dry_run() {
         backup: true,
         force: false,
         dry_run: true,
+        include_timestamps: true,
     };
     
     // Should complete without actually changing files

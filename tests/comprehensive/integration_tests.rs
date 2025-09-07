@@ -1,5 +1,5 @@
 //! Integration Tests for cargo-optimize MVP
-//! Phase 1, CP2-CP3: API contract testing and config file integration
+//! API contract testing and config file integration
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -56,7 +56,7 @@ edition = "2021"
     }
 }
 
-/// CP2: Core Integration Tests (20%)
+/// Core Integration Tests (20%)
 mod cp2_core_integration {
     // Note: These are template tests for comprehensive testing infrastructure
     // Actual test execution is simulated in the main test runner
@@ -68,7 +68,7 @@ mod cp2_core_integration {
     }
 }
 
-/// CP3: Platform-Specific Integration Tests (30%)
+/// Platform-Specific Integration Tests (30%)
 mod cp3_platform_integration {
     #[test]
     fn test_platform_integration() {
@@ -105,6 +105,7 @@ pub mod integration_test_runner {
 }
 
 #[derive(Debug, Default, Clone)]
+#[allow(dead_code)]
 pub struct IntegrationTestResults {
     pub total_tests: usize,
     pub passed_tests: usize,

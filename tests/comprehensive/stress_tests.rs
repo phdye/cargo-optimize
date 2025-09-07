@@ -1,8 +1,8 @@
 //! Stress and Load Tests for cargo-optimize MVP
-//! Phase 1, CP4-CP5: Concurrent operations, resource exhaustion, memory leaks
+//! Concurrent operations, resource exhaustion, memory leaks
 
-/// CP4: Concurrent Operations and Rapid Calls (40%)
-mod cp4_stress_initial {
+/// Concurrent Operations and Rapid Calls (40%)
+mod stress_initial {
     #[test]
     fn test_concurrent_configuration_attempts() {
         // Stress test placeholder - execution simulated by test runner
@@ -10,7 +10,7 @@ mod cp4_stress_initial {
     }
 }
 
-/// CP5: Memory Leaks and Resource Management (50%)
+/// Memory Leaks and Resource Management (50%)
 mod cp5_stress_complete {
     #[test]
     fn test_memory_leak_detection() {

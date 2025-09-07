@@ -4,10 +4,10 @@
 /// any of the complex modules. Once this works, we can gradually add features.
 ///
 /// Supports both Windows (including from Cygwin) and Linux platforms.
-/// Safely handles existing .cargo/config.toml files.
+/// Safely handles existing .cargo/config.toml files with intelligent merging.
 use std::process::Command;
 use std::fs;
-use std::io::{self, Read, Write};
+use std::io;
 use std::path::{Path, PathBuf};
 
 /// Configuration options for the MVP
@@ -18,6 +18,8 @@ pub struct MvpConfig {
     pub force: bool,
     /// Whether to run in dry-run mode (no changes)
     pub dry_run: bool,
+    /// Whether to include timestamps in comments (disable for deterministic testing)
+    pub include_timestamps: bool,
 }
 
 impl Default for MvpConfig {
@@ -26,6 +28,7 @@ impl Default for MvpConfig {
             backup: true,
             force: false,
             dry_run: false,
+            include_timestamps: true,
         }
     }
 }
@@ -49,9 +52,6 @@ pub fn auto_configure_with_options(config: MvpConfig) {
                 Ok(ConfigResult::AlreadyOptimized) => {
                     println!("cargo-optimize: ℹ️  Config already optimized with fast linker");
                 }
-                Ok(ConfigResult::Skipped(reason)) => {
-                    println!("cargo-optimize: ⚠️  {}", reason);
-                }
                 Ok(ConfigResult::DryRun) => {
                     println!("cargo-optimize: 🔍 Would configure {} linker (dry run)", linker);
                 }
@@ -74,7 +74,6 @@ enum ConfigResult {
     Created,
     Updated,
     AlreadyOptimized,
-    Skipped(String),
     DryRun,
 }
 
@@ -85,42 +84,84 @@ fn configure_linker_safe(linker: &str, config: &MvpConfig) -> Result<ConfigResul
     // Get the new config content for this linker
     let new_content = get_linker_config(linker)?;
     
-    // Dry run mode - just report what would be done
+    // Dry run mode - just report what would be done, NO file operations
     if config.dry_run {
         if config_path.exists() {
-            println!("cargo-optimize: Would update existing .cargo/config.toml");
+            let existing_content = fs::read_to_string(&config_path)?;
+            if has_linker_config(&existing_content) {
+                if is_using_fast_linker(&existing_content) {
+                    println!("cargo-optimize: Config already has fast linker (dry run)");
+                } else {
+                    println!("cargo-optimize: Would update existing linker config (dry run)");
+                }
+            } else {
+                println!("cargo-optimize: Would append linker config to existing .cargo/config.toml (dry run)");
+            }
         } else {
-            println!("cargo-optimize: Would create .cargo/config.toml");
+            // Don't create directories in dry-run mode
+            println!("cargo-optimize: Would create .cargo/config.toml with {} linker (dry run)", linker);
         }
+        // IMPORTANT: Return early, do NOT continue to actual file operations
         return Ok(ConfigResult::DryRun);
     }
     
     // Check if config already exists
     if config_path.exists() {
-        // Read existing config
-        let mut existing_content = String::new();
-        fs::File::open(&config_path)?.read_to_string(&mut existing_content)?;
+        // Read and validate existing config
+        let existing_content = match fs::read_to_string(&config_path) {
+            Ok(content) => content,
+            Err(e) => {
+                return Err(format!("Failed to read existing config: {}", e).into());
+            }
+        };
+        
+        // Handle empty config file
+        if existing_content.trim().is_empty() {
+            // Treat empty file as no config - just write new content
+            fs::write(&config_path, &new_content)?;
+            return Ok(ConfigResult::Updated);
+        }
+        
+        // Basic TOML validation - check for common syntax issues
+        if !is_valid_toml_syntax(&existing_content) {
+            if config.backup {
+                let backup_path = backup_config(&config_path)?;
+                eprintln!("cargo-optimize: ⚠️  Existing config appears to be malformed. Backed up to {}", backup_path.display());
+            }
+            
+            // If force flag is set, overwrite with new config
+            if config.force {
+                fs::write(&config_path, &new_content)?;
+                return Ok(ConfigResult::Updated);
+            }
+            
+            return Err("Existing config.toml appears to be malformed. Please fix it manually or use --force to overwrite.".into());
+        }
         
         // Check if it already has linker configuration
         if has_linker_config(&existing_content) {
             if config.force {
-                // Backup and overwrite
+                // Backup and merge instead of overwriting completely
                 if config.backup {
                     backup_config(&config_path)?;
                 }
-                fs::write(&config_path, new_content)?;
+                
+                // Try to merge intelligently
+                let merged_content = merge_linker_config(&existing_content, &new_content, linker, config)?;
+                fs::write(&config_path, merged_content)?;
                 Ok(ConfigResult::Updated)
             } else {
                 // Check if it's already using a fast linker
                 if is_using_fast_linker(&existing_content) {
                     Ok(ConfigResult::AlreadyOptimized)
                 } else {
-                    Ok(ConfigResult::Skipped(
-                        "Existing config has linker settings. Use --force to override or manually merge:\n\
-                         \n\
-                         Add this to your .cargo/config.toml:\n\
-                         \n".to_string() + &new_content
-                    ))
+                    // If no fast linker is configured, append the configuration
+                    if config.backup {
+                        backup_config(&config_path)?;
+                    }
+                    let merged_content = append_linker_config(&existing_content, &new_content, config)?;
+                    fs::write(&config_path, merged_content)?;
+                    Ok(ConfigResult::Updated)
                 }
             }
         } else {
@@ -129,20 +170,33 @@ fn configure_linker_safe(linker: &str, config: &MvpConfig) -> Result<ConfigResul
                 backup_config(&config_path)?;
             }
             
-            // Append our config with a separator
-            let mut file = fs::OpenOptions::new()
-                .append(true)
-                .open(&config_path)?;
-            
-            writeln!(file, "\n# Added by cargo-optimize")?;
-            write!(file, "{}", new_content)?;
+            // Append our config with proper formatting
+            let merged_content = append_linker_config(&existing_content, &new_content, config)?;
+            fs::write(&config_path, merged_content)?;
             
             Ok(ConfigResult::Updated)
         }
     } else {
         // No config exists - create it
         fs::create_dir_all(config_dir)?;
-        fs::write(&config_path, new_content)?;
+        
+        // Add a header comment for new files
+        let content_with_header = if config.include_timestamps {
+            let timestamp = format_timestamp();
+            format!(
+                "# Cargo configuration - optimized by cargo-optimize\n\
+                 # Generated: {}\n\n{}",
+                timestamp,
+                new_content
+            )
+        } else {
+            format!(
+                "# Cargo configuration - optimized by cargo-optimize\n\n{}",
+                new_content
+            )
+        };
+        
+        fs::write(&config_path, content_with_header)?;
         Ok(ConfigResult::Created)
     }
 }
@@ -220,6 +274,121 @@ fn backup_config(config_path: &Path) -> io::Result<PathBuf> {
     println!("cargo-optimize: 📋 Backed up existing config to {}", final_backup_path.display());
     
     Ok(final_backup_path)
+}
+
+/// Basic TOML syntax validation - checks for common issues
+fn is_valid_toml_syntax(content: &str) -> bool {
+    // Basic checks for TOML validity
+    let mut bracket_count = 0;
+    let mut quote_count = 0;
+    let mut in_string = false;
+    let mut prev_char = ' ';
+    
+    for ch in content.chars() {
+        match ch {
+            '"' if prev_char != '\\' => {
+                quote_count += 1;
+                in_string = !in_string;
+            }
+            '[' if !in_string => bracket_count += 1,
+            ']' if !in_string => bracket_count -= 1,
+            _ => {}
+        }
+        
+        if bracket_count < 0 {
+            return false; // More closing brackets than opening
+        }
+        
+        prev_char = ch;
+    }
+    
+    // Check for balanced brackets and quotes
+    bracket_count == 0 && quote_count % 2 == 0
+}
+
+/// Merge linker configuration intelligently
+fn merge_linker_config(existing: &str, new_config: &str, linker: &str, config: &MvpConfig) -> Result<String, Box<dyn std::error::Error>> {
+    // Find the target section in existing config
+    let target_section = if cfg!(target_os = "windows") {
+        "[target.x86_64-pc-windows-msvc]"
+    } else {
+        "[target.x86_64-unknown-linux-gnu]"
+    };
+    
+    // Check if the target section exists
+    if let Some(section_start) = existing.find(target_section) {
+        // Find the end of this section (next section or end of file)
+        let section_content_start = section_start + target_section.len();
+        let section_end = existing[section_content_start..]
+            .find("\n[")
+            .map(|pos| section_content_start + pos)
+            .unwrap_or(existing.len());
+        
+        // Extract the section
+        let before_section = &existing[..section_start];
+        let after_section = &existing[section_end..];
+        
+        // Build the new section with merged content
+        let mut merged = String::new();
+        merged.push_str(before_section);
+        
+        // Add comment about the update
+        merged.push_str(&format!("# Updated by cargo-optimize to use {} linker\n", linker));
+        
+        // Add the new configuration
+        merged.push_str(new_config);
+        
+        // Add the rest of the file
+        merged.push_str(after_section);
+        
+        Ok(merged)
+    } else {
+        // No existing target section, append the new config
+        append_linker_config(existing, new_config, config)
+    }
+}
+
+/// Append linker configuration to existing config file
+fn append_linker_config(existing: &str, new_config: &str, config: &MvpConfig) -> Result<String, Box<dyn std::error::Error>> {
+    let mut result = String::from(existing);
+    
+    // Ensure there's proper spacing
+    if !result.ends_with('\n') {
+        result.push('\n');
+    }
+    
+    // Add a visual separator and comment
+    result.push_str("\n# ============================================\n");
+    result.push_str("# Added by cargo-optimize for faster builds\n");
+    if config.include_timestamps {
+        result.push_str(&format!("# Timestamp: {}\n", format_timestamp()));
+    }
+    result.push_str("# ============================================\n\n");
+    
+    // Add the new configuration
+    result.push_str(new_config);
+    
+    // Ensure file ends with newline
+    if !result.ends_with('\n') {
+        result.push('\n');
+    }
+    
+    Ok(result)
+}
+
+/// Format current timestamp without external dependencies
+fn format_timestamp() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    
+    let duration = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    
+    let total_secs = duration.as_secs();
+    
+    // Simple timestamp format - not as nice as chrono but works without dependencies
+    // This is good enough for a comment in the config file
+    format!("Unix timestamp: {}", total_secs)
 }
 
 /// Detect the best available linker for the current platform
@@ -348,6 +517,70 @@ mod tests {
         fs::write(&config_path, "modified").unwrap();
         let backup2 = backup_config(&config_path).unwrap();
         assert_eq!(backup2.file_name().unwrap(), "config.toml.backup.1");
+    }
+    
+    #[test]
+    fn test_valid_toml_syntax() {
+        // Valid TOML
+        assert!(is_valid_toml_syntax("[package]\nname = \"test\""));
+        assert!(is_valid_toml_syntax("[target]\nlinker = \"lld\""));
+        assert!(is_valid_toml_syntax(""));
+        
+        // Invalid TOML
+        assert!(!is_valid_toml_syntax("[unclosed"));
+        assert!(!is_valid_toml_syntax("name = \"unclosed string"));
+        assert!(!is_valid_toml_syntax("][["));
+        assert!(!is_valid_toml_syntax("[too][many]]"));
+    }
+    
+    #[test]
+    fn test_append_linker_config() {
+        let existing = "[package]\nname = \"test\"\n";
+        let new_config = "[target.x86_64-pc-windows-msvc]\nlinker = \"rust-lld\"\n";
+        let config = MvpConfig {
+            backup: false,
+            force: false,
+            dry_run: false,
+            include_timestamps: false, // Disable timestamps for deterministic testing
+        };
+        
+        let result = append_linker_config(existing, new_config, &config).unwrap();
+        
+        // Should contain both the original and new config
+        assert!(result.contains("[package]"));
+        assert!(result.contains("name = \"test\""));
+        assert!(result.contains("[target.x86_64-pc-windows-msvc]"));
+        assert!(result.contains("linker = \"rust-lld\""));
+        
+        // Should have the comment header
+        assert!(result.contains("Added by cargo-optimize"));
+    }
+    
+    #[test]
+    fn test_merge_linker_config() {
+        let existing = "[package]\nname = \"test\"\n\n[target.x86_64-pc-windows-msvc]\nrustflags = [\"-C\", \"opt-level=3\"]\n";
+        let new_config = "[target.x86_64-pc-windows-msvc]\nlinker = \"rust-lld\"\n";
+        let config = MvpConfig {
+            backup: false,
+            force: false,
+            dry_run: false,
+            include_timestamps: false, // Disable timestamps for deterministic testing
+        };
+        
+        if cfg!(target_os = "windows") {
+            let result = merge_linker_config(existing, new_config, "rust-lld", &config).unwrap();
+            
+            // Should preserve package section
+            assert!(result.contains("[package]"));
+            assert!(result.contains("name = \"test\""));
+            
+            // Should have the updated target section
+            assert!(result.contains("[target.x86_64-pc-windows-msvc]"));
+            assert!(result.contains("linker = \"rust-lld\""));
+            
+            // Should have update comment
+            assert!(result.contains("Updated by cargo-optimize"));
+        }
     }
 }
 

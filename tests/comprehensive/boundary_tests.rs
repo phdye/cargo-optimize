@@ -1,8 +1,8 @@
 //! Boundary Value and Edge Case Tests for cargo-optimize MVP
-//! Phase 1, CP6-CP8: Input validation, Unicode paths, permissions, cross-platform edge cases
+//! Input validation, Unicode paths, permissions, cross-platform edge cases
 
-/// CP6: Input Validation and Core Boundary Tests (60%)
-mod cp6_boundary_core {
+/// Input Validation and Core Boundary Tests (60%)
+mod boundary_core {
     #[test]
     fn test_path_length_limits() {
         // Boundary test placeholder - execution simulated by test runner
@@ -10,7 +10,7 @@ mod cp6_boundary_core {
     }
 }
 
-/// CP7: Unicode and Advanced Path Edge Cases (70%)
+/// Unicode and Advanced Path Edge Cases (70%)
 mod cp7_edge_cases {
     #[test]
     fn test_unicode_path_handling() {
@@ -19,7 +19,7 @@ mod cp7_edge_cases {
     }
 }
 
-/// CP8: Permission and Cross-Platform Boundary Tests (80%)
+/// Permission and Cross-Platform Boundary Tests (80%)
 mod cp8_boundary_complete {
     #[test]
     fn test_permission_boundary_conditions() {

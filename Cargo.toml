@@ -27,8 +27,17 @@ path = "src/lib.rs"
 # name = "debug_detection"
 # path = "src/bin/debug_detection.rs"
 
+[[bin]]
+name = "cargo-test-summary"
+path = "src/bin/cargo-test-summary.rs"
+
+[features]
+# Test features
+long-running = []  # Enable long-running tests
+
 [dependencies]
 # None needed for MVP library!
+regex = "1.10"  # For cargo-test-summary nextest output parsing
 
 [dev-dependencies]
 # Test dependencies for comprehensive testing
@@ -37,18 +46,19 @@ toml = "0.8"
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 rand = "0.8"
+serial_test = "3.0"
 
-[[test]]
-name = "mvp_test"
-harness = false
+# mvp_test now uses the standard test harness for nextest compatibility
+# [[test]]
+# name = "mvp_test"
+# harness = false
 
-[[test]]
-name = "comprehensive_test_runner"
-harness = false
+# comprehensive_test_runner now uses the standard test harness for nextest compatibility
+# [[test]]
+# name = "comprehensive_test_runner"
+# harness = false
 
-[[test]]
-name = "phase2_test_runner"
-harness = false
+# quality_assurance_tests uses the standard test harness
 
 [profile.dev]
 # Fast compilation for development
