@@ -7,6 +7,10 @@ issue/
 # Cargo
 Cargo.lock
 
+# ignore one and two character names
+?
+??
+
 # IDE
 .idea/
 .vscode/
