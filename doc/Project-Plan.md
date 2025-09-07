@@ -1,7 +1,7 @@
 # Project Plan: cargo-optimize Full Implementation
 
 ## Executive Summary
-Transform cargo-optimize from MVP (linker optimization only) into a comprehensive, zero-configuration Rust build optimization tool with advanced features and machine learning capabilities.
+Transform cargo-optimize from MVP (linker optimization only) into a comprehensive, zero-configuration Rust build optimization tool that focuses on **implementable optimizations** without requiring complex new subsystems.
 
 ## Current State (MVP - v0.1.0)
 - ✅ Linker detection and configuration
@@ -9,14 +9,14 @@ Transform cargo-optimize from MVP (linker optimization only) into a comprehensiv
 - ✅ Basic config file management
 - ✅ ~30-70% build time improvement via linker alone
 
-## Target State (v1.0.0+)
+## Target State (v1.0.0)
 Complete automated optimization system with:
 - Hardware-aware configuration
-- Project structure analysis
-- Intelligent caching
+- Build parallelization and caching
+- Dependency analysis and optimization
 - CI/CD integration
-- Build analytics and prediction
-- Organization-wide optimization profiles
+- Build analytics and monitoring
+- Performance budgets and regression detection
 
 ---
 
@@ -69,16 +69,6 @@ Before merging any section:
 - [ ] `git add -u` and `git add [new-files]` completed
 - [ ] Meaningful commit message following convention
 
-### Rollback Procedure
-If a feature needs to be reverted:
-
-```bash
-# From phase branch
-git checkout implementation/phase-N
-git revert -m 1 <merge-commit-hash>
-# Document in issue/phase-N/rollback-NNN.md
-```
-
 ### Phase Completion Checklist
 Before merging phase to main:
 
@@ -88,7 +78,7 @@ Before merging phase to main:
 - [ ] Documentation complete: `cargo doc --open` works
 - [ ] Benchmarks recorded: `issue/benchmark/phase-N/`
 - [ ] **Phase objectives validated:**
-  - [ ] Review checkpoint criteria met (see "Incremental Checkpoint N.0" in phase)
+  - [ ] Review checkpoint criteria met
   - [ ] Performance metrics documented in `issue/phase-N/metrics.md`
   - [ ] Any deviations from plan documented
   - [ ] Risks or blockers identified and addressed
@@ -100,40 +90,39 @@ Before merging phase to main:
 ---
 
 ## Phase 1: Core Infrastructure (v0.2.0)
-**Timeline: 2-3 weeks**  
+**Timeline: 2 weeks**  
 **Goal: Robust foundation for all optimizations**
 **Branch: `implementation/phase-1`**
 
 ### 1.1 Configuration Management Enhancement
-
 ```rust
 // Expand src/config.rs
 - Merge existing configs (don't overwrite)
 - Multi-file config support (.cargo/config.toml + cargo-optimize.toml)
 - Profile system (dev/test/release/bench)
 - Rollback capability
+- Percentage support for applicable values
 ```
 
 **Deliverables:**
 - [ ] Config backup/restore system
-- [ ] Config merging logic
+- [ ] Config merging logic with precedence
 - [ ] Profile templates
+- [ ] Percentage value parsing (e.g., "75%" of cores)
 - [ ] Tests: `tests/config_management.rs`
-
-
 
 ### 1.2 Hardware Detection Module
 ```rust
 // New: src/hardware.rs
-- CPU cores, architecture, cache sizes
+- CPU cores, architecture
 - Available RAM
-- Disk type (SSD/HDD) and speed
-- OS-specific capabilities
+- Disk space and type (SSD/HDD)
+- Platform capabilities
 ```
 
 **Deliverables:**
 - [ ] Hardware detection library
-- [ ] Performance scoring algorithm
+- [ ] Maximum value providers for percentage calculations
 - [ ] Platform-specific optimizations
 - [ ] Tests: `tests/hardware_detection.rs`
 
@@ -143,349 +132,318 @@ Before merging phase to main:
 - Workspace structure detection
 - Dependency graph analysis
 - Build bottleneck identification
-- Code size metrics
+- Simple metrics collection
 ```
 
 **Deliverables:**
 - [ ] Cargo.toml parser enhancements
 - [ ] Dependency analyzer
-- [ ] Build time predictor (basic)
+- [ ] Build metrics collector
 - [ ] Tests: `tests/project_analysis.rs`
 
 **Incremental Checkpoint 1.0:**
 - Review hardware detection accuracy
-- Test on various project types
-- Gather performance baselines 
+- Test config merging with real projects
+- Validate percentage calculations
 
 ---
 
-## Phase 2: Optimization Engine (v0.3.0)
-**Timeline: 3-4 weeks**  
-**Goal: Apply intelligent optimizations based on analysis**
+## Phase 2: Build Optimization (v0.3.0)
+**Timeline: 2 weeks**  
+**Goal: Core build performance improvements**
 **Branch: `implementation/phase-2`**
 
-### 2.1 Parallel Build Optimization
+### 2.1 Parallel Build Configuration
 ```rust
 // New: src/optimize/parallel.rs
 - Calculate optimal job count
 - Configure cargo parallel settings
-- Workspace-level parallelization
+- Memory-aware parallelization
+- Percentage support (e.g., jobs = "75%")
 ```
 
 **Implementation:**
 ```toml
-# Auto-generated optimization
 [build]
-jobs = 8  # Based on CPU cores
+jobs = "75%"  # 75% of CPU cores
 incremental = true
-target-dir = "/fast/ssd/target"  # If available
 ```
 
-### 2.2 Cache Configuration
+### 2.2 Cache Setup
 ```rust
 // New: src/optimize/cache.rs
 - sccache/ccache detection and setup
-- Cache size optimization
-- Distributed cache support (future)
+- Cache size optimization (percentage support)
+- Basic CI cache configuration
 ```
 
 **Features:**
-- [ ] Auto-install sccache if missing
+- [ ] Auto-detect available cache tools
 - [ ] Configure cache locations
-- [ ] Set appropriate cache sizes
-- [ ] Cache hit rate monitoring
+- [ ] Set cache sizes with percentage support
+- [ ] Basic cache metrics
 
-### 2.3 Feature Flag Optimization
+### 2.3 Compilation Profiles
 ```rust
-// New: src/optimize/features.rs
-- Detect unused features in dependencies
-- Suggest minimal feature sets
-- Auto-generate optimized Cargo.toml
+// New: src/optimize/profiles.rs
+- Optimization level configuration
+- Debug symbol management
+- LTO settings (thin/fat)
+- Profile inheritance
 ```
 
 **Deliverables:**
-- [ ] Feature usage analyzer
-- [ ] Optimization suggestions
-- [ ] Automated feature pruning
+- [ ] Profile management system
+- [ ] Per-profile optimization
 - [ ] Tests: Full optimization suite
 
 **Incremental Checkpoint 2.0:**
-- Benchmark improvements beyond linker
-- User testing on real projects
-- Refine optimization heuristics
+- Benchmark parallel build improvements
+- Validate cache effectiveness
+- Test profile configurations
 
 ---
 
-## Phase 3: Smart Features (v0.4.0)
-**Timeline: 3-4 weeks**  
-**Goal: Intelligent, adaptive optimizations**
+## Phase 3: Dependency Optimization (v0.4.0)
+**Timeline: 2 weeks**  
+**Goal: Optimize dependency compilation**
 **Branch: `implementation/phase-3`**
 
-### 3.1 Build Time Prediction & Budgeting
+### 3.1 Feature Flag Analysis
 ```rust
-// New: src/predict.rs
-- ML model for build time estimation
-- Change impact analysis
-- Build budget enforcement
+// New: src/optimize/features.rs
+- Detect unused features in dependencies
+- Analyze feature usage
+- Generate optimization report
 ```
 
 **Features:**
-- [ ] Historical build data collection
-- [ ] Prediction model (start simple)
-- [ ] "This change adds ~30s" warnings
-- [ ] Budget alerts
+- [ ] Feature usage analyzer
+- [ ] Minimal feature set detection
+- [ ] User-friendly reports
 
-### 3.2 Dependency Bottleneck Detection
+### 3.2 Bottleneck Detection
 ```rust
 // New: src/analyze/bottlenecks.rs
-- Profile compilation times per dependency
-- Identify heavy dependencies
-- Suggest alternatives or feature reductions
+- Time compilation per dependency
+- Identify slow dependencies
+- Generate warning reports
 ```
 
 **Output Example:**
 ```
 Heavy Dependencies Detected:
-- tokio: 45s (consider tokio with fewer features)
+- tokio: 45s (consider reducing features)
 - syn: 38s (required by 3 proc-macro crates)
-- serde: 22s (used by 15 crates)
 ```
 
-### 3.3 Smart Workspace Splitting
+### 3.3 Build Order Optimization
 ```rust
-// New: src/optimize/workspace.rs
-- Detect monolithic crates
-- Suggest split points
-- Auto-generate workspace structure
+// New: src/optimize/build_order.rs
+- Analyze dependency graph
+- Optimize compilation order
+- Maximize parallelization
 ```
 
 **Deliverables:**
-- [ ] Crate size analyzer
-- [ ] Split point detection
-- [ ] Refactoring suggestions
+- [ ] Dependency timing analysis
+- [ ] Build order optimizer
 - [ ] Tests: Analysis accuracy
 
 **Incremental Checkpoint 3.0:**
-- Validate predictions vs actual times
-- Test workspace splitting suggestions
-- Gather user feedback on suggestions
+- Validate bottleneck detection
+- Test feature optimization suggestions
+- Measure build order improvements
 
 ---
 
-## Phase 4: CI/CD & Team Features (v0.5.0)
-**Timeline: 2-3 weeks**  
-**Goal: Enterprise and team optimizations**
+## Phase 4: CI/CD Integration (v0.5.0)
+**Timeline: 2 weeks**  
+**Goal: Optimize CI/CD builds**
 **Branch: `implementation/phase-4`**
 
-### 4.1 CI/CD Integration
+### 4.1 CI Environment Detection
 ```rust
 // New: src/ci.rs
-- GitHub Actions optimization
-- GitLab CI optimization
-- Distributed cache setup
+- Detect CI environment (GitHub/GitLab/Jenkins)
+- Auto-configure for CI
+- Cache key generation
 ```
 
 **Features:**
-- [ ] CI environment detection
-- [ ] Cache key generation
-- [ ] Multi-job optimization
-- [ ] Matrix build optimization
+- [ ] CI platform detection
+- [ ] Environment-specific optimization
+- [ ] Cache configuration for CI
 
-### 4.2 Team Configuration Sharing
+### 4.2 Matrix Build Support
 ```rust
-// New: src/sync.rs
-- Organization profiles
-- Remote config fetching
-- Auto-update mechanism
+// New: src/ci/matrix.rs
+- Per-matrix job optimization
+- Platform-specific settings
+- Parallel matrix optimization
 ```
 
-**Implementation:**
-```toml
-[package.metadata.optimize]
-upstream = "https://github.com/org/cargo-optimize-profiles"
-auto_update = true
-```
-
-### 4.3 Build Analytics Dashboard
+### 4.3 Build Metrics Export
 ```rust
-// New: src/dashboard/
-- Local web server
-- Build time visualization
-- Optimization recommendations
+// New: src/metrics.rs
+- Export build times
+- Cache hit rates
+- JSON/CSV output formats
 ```
 
 **Deliverables:**
-- [ ] Web dashboard (localhost:3000)
-- [ ] Build history tracking
-- [ ] Performance graphs
-- [ ] What-if analysis tool
+- [ ] CI detection and configuration
+- [ ] Matrix build optimization
+- [ ] Metrics collection and export
+- [ ] Tests: CI environment simulation
 
 **Incremental Checkpoint 4.0:**
-- Test CI integrations
-- Validate team sharing features
-- Dashboard usability testing
+- Test on real CI systems
+- Validate cache key strategies
+- Verify metrics accuracy
 
 ---
 
-## Phase 5: Advanced Features (v0.6.0)
-**Timeline: 4-5 weeks**  
-**Goal: Cutting-edge optimizations**
+## Phase 5: Monitoring & Analytics (v0.6.0)
+**Timeline: 2 weeks**  
+**Goal: Build intelligence and monitoring**
 **Branch: `implementation/phase-5`**
 
-### 5.1 Auto-Profiling with PGO
+### 5.1 Build Analytics Dashboard
 ```rust
-// New: src/optimize/pgo.rs
-- Automatic profile generation
-- Test suite as workload
-- Progressive optimization
+// New: src/dashboard/
+- Local web server (localhost:3000)
+- Build time visualization
+- Simple HTML/JS interface
 ```
 
-### 5.2 Platform-Specific Optimizations
+**Features:**
+- [ ] Web dashboard
+- [ ] Build history tracking
+- [ ] Performance graphs
+- [ ] Regression detection
+
+### 5.2 Performance Budgets
 ```rust
-// New: src/platform/
-- macOS: Fat binary optimization
-- Windows: Defender exclusions
-- Linux: tmpfs for builds
+// New: src/budget.rs
+- Build time limits
+- Binary size limits
+- Memory usage limits
+- Percentage-based thresholds
 ```
 
-### 5.3 Intelligent Failure Recovery
+### 5.3 Regression Detection
 ```rust
-// New: src/recovery.rs
-- Build failure detection
-- Automatic retry with reduced optimization
-- Corruption detection and cleanup
-```
-
-### 5.4 Development Workflow Learning
-```rust
-// New: src/learn.rs
-- Track edit patterns
-- Optimize for user's workflow
-- Predictive compilation
+// New: src/analyze/regression.rs
+- Compare against baseline
+- Detect performance degradation
+- Alert on threshold violations
 ```
 
 **Deliverables:**
-- [ ] PGO automation
-- [ ] Platform optimization modules
-- [ ] Failure recovery system
-- [ ] Workflow analysis engine
+- [ ] Dashboard implementation
+- [ ] Budget enforcement
+- [ ] Regression detection
+- [ ] Tests: Monitoring accuracy
 
 **Incremental Checkpoint 5.0:**
-- Test advanced features
-- Performance validation
-- User experience refinement
+- Dashboard usability testing
+- Validate regression detection
+- Test budget enforcement
 
 ---
 
-## Phase 6: ML & Polish (v1.0.0)
-**Timeline: 3-4 weeks**  
-**Goal: Production-ready with ML enhancements**
+## Phase 6: Platform & Polish (v1.0.0)
+**Timeline: 2 weeks**  
+**Goal: Production-ready release**
 **Branch: `implementation/phase-6`**
 
-### 6.1 Machine Learning Integration
+### 6.1 Platform-Specific Optimizations
 ```rust
-// New: src/ml/
-- Build pattern learning
-- Optimization prediction
-- Anomaly detection
+// New: src/platform/
+- Windows: Defender exclusions
+- Linux: tmpfs detection and use
+- macOS: Basic optimizations
 ```
 
 ### 6.2 Documentation & Examples
 - Comprehensive user guide
-- Example configurations
+- Configuration examples
 - Troubleshooting guide
-- Performance case studies
+- Migration from manual configs
 
 ### 6.3 Release Engineering
 - Packaging for crates.io
 - Binary releases
 - Installation scripts
-- Migration guides
+- Homebrew/AUR packages
 
 **Final Deliverables:**
-- [ ] ML models integrated
+- [ ] Platform optimizations
 - [ ] Complete documentation
 - [ ] Binary distributions
-- [ ] Marketing materials
+- [ ] Package manager support
 
 ---
 
-## Incremental Development Process
+## Success Metrics
 
-### Weekly Cycles
-1. **Monday**: Plan week's features
-2. **Tuesday-Thursday**: Implementation
-3. **Friday**: Testing & benchmarking
-4. **Weekend**: Community testing (optional)
+### Performance Targets
+- **Build Time Reduction**: 50-70% average improvement
+- **Cache Hit Rate**: >80% in typical development
+- **Zero-Config Success**: Works with 90% of projects without configuration
 
-### Feedback Loops
-```yaml
-Each Phase:
-  - Technical Review: Code quality check
-  - Performance Review: Benchmark results
-  - User Review: Usability testing
-  - Decision Point: Adjust next phase based on learnings
-```
+### Quality Targets
+- **Test Coverage**: >80%
+- **Documentation**: All public APIs documented
+- **Platform Support**: Windows, Linux, macOS
+- **CI Support**: GitHub Actions, GitLab CI, Jenkins
 
-### Success Metrics
-- **Performance**: 70%+ build time reduction
-- **Adoption**: Works with 95% of Rust projects
-- **Reliability**: <1% failure rate
-- **User Satisfaction**: Zero-config for 80% of users
-
-### Risk Mitigation
-1. **Incremental releases**: Each phase is usable
-2. **Feature flags**: Disable experimental features
-3. **Rollback capability**: Always preserve working state
-4. **Extensive testing**: Every optimization validated
+### Adoption Targets
+- **Ease of Use**: Single command installation
+- **Compatibility**: Rust 1.70+
+- **Project Types**: Libraries, binaries, workspaces
 
 ---
 
-## Resource Requirements
+## Risk Mitigation
 
-### Development
-- Primary developer: Full implementation
-- Testing: Various project types and platforms
-- Documentation: User guides and API docs
+### Technical Risks
+1. **Config Conflicts**: Extensive testing with existing configs
+2. **Platform Differences**: CI testing on all platforms
+3. **Performance Regression**: Continuous benchmarking
 
-### Infrastructure
-- CI/CD: GitHub Actions for testing
-- Benchmarking: Diverse test projects
-- Distribution: crates.io, GitHub releases
+### Mitigation Strategies
+- **Feature Flags**: Disable problematic features
+- **Rollback**: Always preserve original configs
+- **Gradual Rollout**: Beta testing program
+- **Extensive Testing**: Multiple real-world projects
 
 ---
 
 ## Timeline Summary
 
-| Phase | Version | Duration | Cumulative |
-|-------|---------|----------|------------|
-| 1. Core Infrastructure | v0.2.0 | 2-3 weeks | 3 weeks |
-| 2. Optimization Engine | v0.3.0 | 3-4 weeks | 7 weeks |
-| 3. Smart Features | v0.4.0 | 3-4 weeks | 11 weeks |
-| 4. CI/CD & Team | v0.5.0 | 2-3 weeks | 14 weeks |
-| 5. Advanced Features | v0.6.0 | 4-5 weeks | 19 weeks |
-| 6. ML & Polish | v1.0.0 | 3-4 weeks | 23 weeks |
+| Phase | Version | Duration | Features |
+|-------|---------|----------|----------|
+| 1. Core Infrastructure | v0.2.0 | 2 weeks | Config, Hardware, Analysis |
+| 2. Build Optimization | v0.3.0 | 2 weeks | Parallel, Cache, Profiles |
+| 3. Dependency Opt | v0.4.0 | 2 weeks | Features, Bottlenecks, Order |
+| 4. CI/CD Integration | v0.5.0 | 2 weeks | CI Detection, Matrix, Metrics |
+| 5. Monitoring | v0.6.0 | 2 weeks | Dashboard, Budgets, Regression |
+| 6. Platform & Polish | v1.0.0 | 2 weeks | Platform-specific, Docs, Release |
 
-**Total: ~6 months to full implementation**
+**Total: 12 weeks to full implementation**
 
 ---
 
 ## Next Immediate Steps
 
-1. **Review and approve plan with conventions**
-2. **Set up issue tracking**: `issue/phase-N/` for each phase
-3. **Create initial branch structure**:
-   ```bash
-   git checkout -b implementation/phase-1
-   ```
-4. **Begin Phase 1.1**: Configuration Management Enhancement
-   - Follow Development Conventions
-   - Use Quality Checklist before merge
-5. **Create benchmarking baseline**: `issue/benchmark/001/`
-6. **Establish test projects**: Various sizes and types
+1. **Review and approve plan**
+2. **Create Phase 1 branch**: `git checkout -b implementation/phase-1`
+3. **Begin Section 1.1**: Configuration Management Enhancement
+4. **Set up test infrastructure**: According to test strategy
+5. **Create benchmark baseline**: `issue/benchmark/001/`
 
-The plan is designed to be **incremental and adaptive** - we can adjust based on what we learn at each checkpoint. Each phase delivers **immediate value** while building toward the complete vision.
+This plan focuses on **implementable features** that provide immediate value without requiring complex new subsystems. Advanced features requiring significant architectural work are documented in [Future-Features.md](Future-Features.md).
 
-**Convention Reminder**: All development follows the established conventions above. No need to repeat process steps in each section - just focus on the technical implementation.
-
-Ready to begin Phase 1?
+**Note**: Each phase delivers working functionality that users can benefit from immediately. The modular approach allows for course correction based on user feedback and real-world testing.
