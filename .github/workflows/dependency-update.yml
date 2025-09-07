@@ -1,0 +1,40 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    # Run weekly on Mondays at 4 AM UTC
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+jobs:
+  update-deps:
+    name: Update Dependencies
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Update dependencies
+      run: |
+        cargo update
+        cargo outdated --format json > outdated.json
+    
+    - name: Run tests with updated deps
+      run: cargo test
+    
+    - name: Create PR
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "chore: update dependencies"
+        title: "chore: weekly dependency updates"
+        body: |
+          ## Weekly Dependency Updates
+          
+          This PR updates all dependencies to their latest compatible versions.
+          
+          Please review the changes and ensure all tests pass before merging.
+        branch: deps/weekly-update
+        delete-branch: true

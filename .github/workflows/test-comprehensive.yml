@@ -1,0 +1,103 @@
+name: Comprehensive Tests
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run weekly on Sundays at 3 AM UTC
+    - cron: '0 3 * * 0'
+
+jobs:
+  phase1-tests:
+    name: Phase 1 - Foundation Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    
+    - name: Run Phase 1 tests
+      run: |
+        cargo test --test comprehensive_test_runner
+        cargo test --test integration_test
+    
+    - name: Upload results
+      uses: actions/upload-artifact@v3
+      with:
+        name: phase1-results
+        path: |
+          target/debug/deps/*.json
+          issue/mvp/003/phase1/logs/
+
+  phase2-tests:
+    name: Phase 2 - Quality Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    
+    - name: Run Phase 2 tests
+      run: cargo test --test phase2_test_runner
+    
+    - name: Upload results
+      uses: actions/upload-artifact@v3
+      with:
+        name: phase2-results
+        path: target/debug/deps/*.json
+
+  phase3-tests:
+    name: Phase 3 - Security Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    
+    - name: Run Phase 3 tests
+      run: cargo test --test phase3_security
+    
+    - name: Upload results
+      uses: actions/upload-artifact@v3
+      with:
+        name: phase3-results
+        path: target/debug/deps/*.json
+
+  phase4-tests:
+    name: Phase 4 - Production Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    
+    - name: Run Phase 4 tests
+      run: cargo test --test phase4_production_runner
+    
+    - name: Upload results
+      uses: actions/upload-artifact@v3
+      with:
+        name: phase4-results
+        path: target/debug/deps/*.json
+
+  test-report:
+    name: Generate Test Report
+    needs: [phase1-tests, phase2-tests, phase3-tests, phase4-tests]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+    
+    - name: Generate comprehensive report
+      run: |
+        echo "# Comprehensive Test Report" > test_report.md
+        echo "Generated: $(date)" >> test_report.md
+        echo "" >> test_report.md
+        echo "## Phase Results" >> test_report.md
+        echo "- Phase 1: ✅ Complete" >> test_report.md
+        echo "- Phase 2: ✅ Complete" >> test_report.md
+        echo "- Phase 3: ✅ Complete" >> test_report.md
+        echo "- Phase 4: ✅ Complete" >> test_report.md
+    
+    - name: Upload report
+      uses: actions/upload-artifact@v3
+      with:
+        name: comprehensive-test-report
+        path: test_report.md

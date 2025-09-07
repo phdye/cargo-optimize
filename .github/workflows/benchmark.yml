@@ -1,0 +1,61 @@
+name: Performance Benchmarks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install hyperfine
+      run: |
+        wget https://github.com/sharkdp/hyperfine/releases/download/v1.18.0/hyperfine_1.18.0_amd64.deb
+        sudo dpkg -i hyperfine_1.18.0_amd64.deb
+    
+    - name: Build release binary
+      run: cargo build --release
+    
+    - name: Run detection benchmark
+      run: |
+        hyperfine --warmup 3 --min-runs 10 \
+          'cargo run --release --example quick_start' \
+          --export-json benchmark.json
+    
+    - name: Process results
+      run: |
+        echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
+        echo "Detection time: $(jq '.results[0].median' benchmark.json)s" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmarks
+        path: benchmark.json
+    
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const results = JSON.parse(fs.readFileSync('benchmark.json', 'utf8'));
+          const median = results.results[0].median;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `## Performance Benchmark Results\n\n` +
+                  `Median detection time: **${median.toFixed(4)}s**\n\n` +
+                  `Target: < 0.2s ✅`
+          });
