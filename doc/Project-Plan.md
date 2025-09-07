@@ -20,6 +20,152 @@ Complete automated optimization system with:
 
 ---
 
+## Development Conventions
+
+### Branch Strategy
+Every phase and section follows this branching pattern:
+
+```
+main
+└── implementation/phase-N        # Phase branch
+    ├── 1-feature-name           # Feature branches
+    ├── 2-feature-name
+    └── 3-feature-name
+```
+
+**Naming Convention:**
+- Phase branches: `implementation/phase-1`, `implementation/phase-2`, etc.
+- Feature branches: `M-descriptive-name` (from within phase branch)
+  - M = section number within phase
+  - descriptive-name = kebab-case feature description
+  - Example: `1-config-management`, `2-hardware-detection`
+
+### Version Strategy
+- **Patch (v0.2.x)**: Bug fixes, documentation updates, minor improvements
+- **Minor (v0.x.0)**: New features (typically each phase completion)
+- **Major (vx.0.0)**: Breaking changes to config format, CLI, or behavior
+
+### Commit Message Convention
+Use conventional commits format:
+```bash
+# Recommended format
+git commit -m "feat(config): implement configuration management"
+git commit -m "fix(hardware): handle sysinfo failure gracefully"
+git commit -m "test(config): add merge precedence tests"
+git commit -m "docs(readme): update installation instructions"
+```
+
+### Standard Development Workflow
+
+**For Each Phase:**
+1. `git checkout -b implementation/phase-N` from main
+2. Complete all sections within the phase
+3. Merge back to main when phase is complete
+4. Tag with version number (e.g., `v0.2.0`)
+
+**For Each Section within a Phase:**
+1. `git checkout -b M-feature-name` from phase branch
+2. Implement the feature
+3. Write tests according to `doc/Comprehensive-Test-Strategy.md`
+4. Complete **Quality Checklist** (see below)
+5. `git commit -m "feat(module): description"`
+6. `git checkout implementation/phase-N`
+7. `git merge M-feature-name`
+
+### Quality Checklist
+Before merging any section:
+
+- [ ] All tests written according to `doc/Comprehensive-Test-Strategy.md`
+- [ ] Test strategy checkpoints followed (save work every ~100 lines)
+- [ ] Minimum test coverage met (80% for new code)
+- [ ] `cargo test` passes with no failures
+- [ ] `cargo check --tests` shows no errors or warnings
+- [ ] `cargo clippy -- -D warnings` passes
+- [ ] All code is thoroughly commented
+- [ ] Documentation updated (`README.md`, `doc/`, inline docs)
+- [ ] Project root is clean (no development artifacts)
+- [ ] Benchmark results recorded in `issue/benchmark/`
+- [ ] `git add -u` and `git add [new-files]` completed
+- [ ] Meaningful commit message following convention
+
+### Rollback Procedure
+If a feature needs to be reverted:
+
+```bash
+# Git rollback
+git checkout implementation/phase-N
+git revert -m 1 <merge-commit-hash>
+# Document in issue/phase-N/rollback-NNN.md
+
+# User system rollback (to be implemented in Phase 1)
+cargo optimize rollback  # Restores original .cargo/config.toml from backup
+```
+
+### Phase Completion Checklist
+Before merging phase to main:
+
+- [ ] All section branches merged to phase branch
+- [ ] Full test suite passes: `cargo test`
+- [ ] No clippy warnings: `cargo clippy -- -D warnings`
+- [ ] Documentation complete: `cargo doc --open` works
+- [ ] Benchmarks recorded: `issue/benchmark/phase-N/`
+- [ ] Performance regression check completed (compare to previous version)
+- [ ] **Phase objectives validated:**
+  - [ ] Review checkpoint criteria met (see Incremental Checkpoint in phase)
+  - [ ] Performance metrics documented in `issue/phase-N/metrics.md`
+  - [ ] Any deviations from plan documented
+  - [ ] Risks or blockers identified and addressed
+  - [ ] **If objectives not met**: Document remediation plan in `issue/phase-N/remediation.md`
+- [ ] Changelog updated with all changes
+- [ ] Version bumped in `Cargo.toml`
+- [ ] Dependencies audited: `cargo audit`
+- [ ] `git checkout main && git merge implementation/phase-N`
+- [ ] `git tag vX.Y.Z`
+- [ ] Push tags: `git push origin main --tags`
+
+---
+
+## Core Principles
+
+### Error Handling Philosophy
+- **Always preserve** user's original configuration (backup before modify)
+- **Fail safely** with clear, actionable error messages
+- **Never leave** system in broken state
+- **Provide rollback** mechanism for all changes
+
+### Backward Compatibility
+- **MSRV**: Rust 1.70+ (document in Cargo.toml)
+- **Cargo versions**: Handle gracefully from 1.70 onward
+- **Config versioning**: Include version field in cargo-optimize.toml
+- **Migration support**: Provide upgrade path for config changes
+
+### Testing Strategy Application
+Following `doc/Comprehensive-Test-Strategy.md`:
+- **Unit tests**: For each module
+- **Integration tests**: For feature interactions
+- **Boundary tests**: Edge cases and limits
+- **Platform tests**: Windows, Linux, macOS specific
+- **Regression tests**: For each fixed bug
+- **Performance tests**: Benchmark critical paths
+
+### Percentage Value Specification
+When implementing percentage support:
+```toml
+[build]
+jobs = "75%"         # 75% of logical CPU cores, rounded down
+cache-size = "10%"   # 10% of available disk space, max 10GB
+memory-limit = "50%" # 50% of available RAM, rounded to nearest GB
+```
+
+### Crate Integration Principles
+- **Prefer established crates** over custom implementations
+- **Wrap external crates** in our own modules for abstraction
+- **Document why** each crate was chosen
+- **Monitor crate health** (maintenance, security advisories)
+- **Minimize dependencies** - only add what provides significant value
+
+---
+
 ## Key Dependencies
 
 ### Core Crates We'll Use
@@ -40,254 +186,347 @@ guppy = "0.17"           # Facebook's dependency graph analyzer
 # CI Detection
 ci_info = "0.14"         # Detects 20+ CI environments
 
-# Web Dashboard
+# Web Dashboard (Phase 5)
 axum = "0.7"             # Modern web framework
 minijinja = "1.0"        # Lightweight templates
 tower-http = "0.5"       # Static file serving
+
+# Storage (Phase 5)
+rusqlite = "0.31"        # Embedded database
 
 # Utilities
 which = "6.0"            # Find executables (already using)
 anyhow = "1.0"           # Error handling
 tracing = "0.1"          # Logging/diagnostics
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"       # JSON serialization
 ```
-
----
-
-## Development Conventions
-
-[Keep existing conventions section - Branch Strategy, Version Strategy, etc.]
-
-### Crate Integration Principles
-- **Prefer established crates** over custom implementations
-- **Wrap external crates** in our own modules for abstraction
-- **Document why** each crate was chosen
-- **Monitor crate health** (maintenance, security advisories)
-- **Minimize dependencies** - only add what provides significant value
 
 ---
 
 ## Phase 1: Core Infrastructure (v0.2.0)
-**Timeline: 1 week** (reduced from 2 weeks)  
+**Timeline: 1 week**  
 **Goal: Robust foundation using proven libraries**
 **Branch: `implementation/phase-1`**
 
-### 1.1 Configuration Management
+### 1.1 Configuration Management Enhancement
+
+**Branch: `1-config-management`**
+
 ```rust
 // src/config.rs - Using figment for layered configuration
 use figment::{Figment, providers::{Format, Toml, Env}};
 use toml_edit::Document;  // Preserve user's TOML formatting
-
-// Features:
-- Layer configs: defaults -> file -> env vars
-- Preserve user's .cargo/config.toml formatting
-- Automatic backup before changes
-- Profile support (dev/test/release/bench)
 ```
+
+**Implementation Tasks:**
+- [ ] Create config module with figment integration
+- [ ] Implement TOML preservation with toml_edit
+- [ ] Add backup/restore mechanism (store in `.cargo/config.toml.backup`)
+- [ ] Implement percentage value parser
+- [ ] Create profile templates (dev/test/release/bench)
+
+**Tests Required** (`tests/config_management.rs`):
+- [ ] Unit: Config loading, merging, serialization
+- [ ] Integration: Multi-file config precedence
+- [ ] Boundary: Invalid percentages, missing files
+- [ ] Regression: Preserve user formatting
 
 **Deliverables:**
 - [ ] Figment-based config system with merge logic
 - [ ] TOML preservation using toml_edit
 - [ ] Backup/restore mechanism
 - [ ] Percentage value parsing layer
-- [ ] Tests: `tests/config_management.rs`
+- [ ] Complete test suite
 
-### 1.2 Hardware Detection
+### 1.2 Hardware Detection Module
+
+**Branch: `2-hardware-detection`**
+
 ```rust
 // src/hardware.rs - Using sysinfo and num_cpus
 use sysinfo::{System, SystemExt, CpuExt, DiskExt};
 use num_cpus;  // For simple CPU count
-
-// Provides:
-- CPU cores (logical/physical)
-- Memory info (total/available)
-- Disk info (size/type/mount points)
-- Platform-specific details
 ```
+
+**Implementation Tasks:**
+- [ ] Create hardware module wrapping sysinfo
+- [ ] Implement percentage calculation helpers
+- [ ] Add fallback values for detection failures
+- [ ] Create platform-specific optimizations
+- [ ] Add caching for expensive operations
+
+**Tests Required** (`tests/hardware_detection.rs`):
+- [ ] Unit: CPU/RAM/Disk detection
+- [ ] Integration: Percentage calculations
+- [ ] Boundary: Zero resources, overflow
+- [ ] Platform: Windows/Linux/macOS specific
 
 **Deliverables:**
 - [ ] Thin wrapper around sysinfo
 - [ ] Percentage calculation helpers
 - [ ] Fallback values for failures
-- [ ] Tests: `tests/hardware_detection.rs`
+- [ ] Complete test suite
 
-### 1.3 Project Analysis
+### 1.3 Project Analysis Engine
+
+**Branch: `3-project-analysis`**
+
 ```rust
 // src/analysis.rs - Using cargo_metadata and guppy
 use cargo_metadata::{MetadataCommand, Package};
 use guppy::graph::PackageGraph;
-
-// Provides:
-- Workspace structure
-- Dependency graph
-- Feature analysis
-- Build target detection
 ```
+
+**Implementation Tasks:**
+- [ ] Create analysis module with cargo_metadata
+- [ ] Integrate guppy for dependency graphs
+- [ ] Implement workspace detection
+- [ ] Add build target identification
+- [ ] Create metrics collection
+
+**Tests Required** (`tests/project_analysis.rs`):
+- [ ] Unit: Metadata parsing, graph creation
+- [ ] Integration: Multi-workspace projects
+- [ ] Boundary: Malformed Cargo.toml
+- [ ] Performance: Large dependency graphs
 
 **Deliverables:**
 - [ ] cargo_metadata integration
 - [ ] Guppy-based dependency analysis
 - [ ] Build metrics collection
-- [ ] Tests: `tests/project_analysis.rs`
+- [ ] Complete test suite
 
 **Incremental Checkpoint 1.0:**
-- Verify crate integrations work smoothly
-- Test on various project structures
-- Validate percentage calculations
+- [ ] Verify all crate integrations work smoothly
+- [ ] Test on 5+ different project structures
+- [ ] Validate percentage calculations with edge cases
+- [ ] Performance baseline: <100ms for analysis
+- [ ] Document any API limitations discovered
 
 ---
 
 ## Phase 2: Build Optimization (v0.3.0)
-**Timeline: 1 week** (reduced from 2 weeks)  
+**Timeline: 1 week**  
 **Goal: Core build improvements**
 **Branch: `implementation/phase-2`**
 
 ### 2.1 Parallel Build Configuration
+
+**Branch: `1-parallel-builds`**
+
 ```rust
 // src/optimize/parallel.rs
 use num_cpus;
 use sysinfo::{System, SystemExt};
-
-// Smart parallelization:
-- Use num_cpus for detection
-- Memory-aware limits from sysinfo
-- Percentage support ("75%" of cores)
 ```
 
+**Implementation Tasks:**
+- [ ] Calculate optimal job count based on CPU/RAM
+- [ ] Implement memory-aware limits
+- [ ] Add percentage support parsing
+- [ ] Create cargo config generation
+- [ ] Add validation logic
+
+**Tests Required** (`tests/parallel_optimization.rs`):
+- [ ] Unit: Job calculation logic
+- [ ] Integration: Config file generation
+- [ ] Boundary: 1 core, 1000 cores
+- [ ] Performance: Measure actual speedup
+
 ### 2.2 Cache Setup
+
+**Branch: `2-cache-setup`**
+
 ```rust
 // src/optimize/cache.rs
 use which::which;  // Detect sccache/ccache
 use sysinfo::DiskExt;  // For disk space
-
-// Features:
-- Detect cache tools via 'which'
-- Smart cache sizing based on disk
-- Generate CI-appropriate configs
 ```
+
+**Implementation Tasks:**
+- [ ] Detect available cache tools
+- [ ] Implement smart cache sizing
+- [ ] Add CI-specific configurations
+- [ ] Create cache statistics collector
+- [ ] Add cache cleanup logic
+
+**Tests Required** (`tests/cache_optimization.rs`):
+- [ ] Unit: Cache size calculations
+- [ ] Integration: Tool detection
+- [ ] Boundary: No disk space, no tools
+- [ ] CI: GitHub Actions simulation
 
 ### 2.3 Build Timing Analysis
+
+**Branch: `3-timing-analysis`**
+
 ```rust
 // src/analyze/timing.rs
-// Parse cargo's built-in --timings output
 use cargo_metadata::Message;
-
-// Instead of custom timing:
-- Use `cargo build --timings`
-- Parse the generated HTML/JSON
-- Extract bottleneck information
 ```
 
-**Deliverables:**
-- [ ] Parallel optimization with num_cpus
-- [ ] Cache tool detection and config
-- [ ] Cargo timings parser
-- [ ] Tests: Optimization suite
+**Implementation Tasks:**
+- [ ] Parse cargo --timings output
+- [ ] Extract bottleneck information
+- [ ] Create timing report generator
+- [ ] Add comparison logic
+- [ ] Implement trend detection
+
+**Tests Required** (`tests/timing_analysis.rs`):
+- [ ] Unit: Parsing logic
+- [ ] Integration: Real cargo output
+- [ ] Boundary: Empty builds, huge builds
+- [ ] Regression: Format changes
 
 **Incremental Checkpoint 2.0:**
-- Measure performance improvements
-- Validate cache effectiveness
-- Test timing analysis accuracy
+- [ ] Measure performance improvements (target: 20-30%)
+- [ ] Validate cache hit rates (target: >80%)
+- [ ] Test on 10+ real projects
+- [ ] Document optimization limits
 
 ---
 
 ## Phase 3: Dependency Optimization (v0.4.0)
-**Timeline: 1 week** (reduced from 2 weeks)  
+**Timeline: 1 week**  
 **Goal: Optimize dependencies using guppy**
 **Branch: `implementation/phase-3`**
 
 ### 3.1 Feature Flag Analysis
+
+**Branch: `1-feature-analysis`**
+
 ```rust
 // src/optimize/features.rs
 use guppy::graph::{PackageGraph, FeatureSet};
-
-// Guppy provides:
-- Feature graph analysis
-- Unused feature detection
-- Feature unification insights
 ```
+
+**Implementation Tasks:**
+- [ ] Implement feature usage detection
+- [ ] Create unused feature finder
+- [ ] Add feature recommendation engine
+- [ ] Generate optimization reports
+- [ ] Add safety validation
+
+**Tests Required** (`tests/feature_optimization.rs`):
+- [ ] Unit: Feature detection logic
+- [ ] Integration: Real project analysis
+- [ ] Boundary: No features, all features
+- [ ] Safety: Don't break builds
 
 ### 3.2 Bottleneck Detection
-```rust
-// src/analyze/bottlenecks.rs
-// Combine cargo --timings with guppy
 
-- Parse timing data
-- Map to dependency graph
-- Identify slow paths
-```
+**Branch: `2-bottleneck-detection`**
+
+**Implementation Tasks:**
+- [ ] Combine timing data with dependency graph
+- [ ] Identify critical path
+- [ ] Create bottleneck scorer
+- [ ] Generate actionable reports
+- [ ] Add alternative suggestions
+
+**Tests Required** (`tests/bottleneck_detection.rs`):
+- [ ] Unit: Scoring algorithm
+- [ ] Integration: Real build data
+- [ ] Performance: Large graphs
+- [ ] Accuracy: Known bottlenecks
 
 ### 3.3 Build Order Optimization
-```rust
-// src/optimize/build_order.rs
-use guppy::graph::DependencyDirection;
 
-// Guppy can:
-- Analyze build order
-- Find parallelization opportunities
-- Suggest better ordering
-```
+**Branch: `3-build-order`**
 
-**Deliverables:**
-- [ ] Guppy-based feature analysis
-- [ ] Timing + dependency correlation
-- [ ] Build order recommendations
-- [ ] Tests: Analysis accuracy
+**Implementation Tasks:**
+- [ ] Analyze current build order
+- [ ] Find parallelization opportunities
+- [ ] Create order optimizer
+- [ ] Validate correctness
+- [ ] Measure improvements
+
+**Tests Required** (`tests/build_order.rs`):
+- [ ] Unit: Order algorithm
+- [ ] Integration: Workspace builds
+- [ ] Correctness: No circular deps
+- [ ] Performance: Actual speedup
 
 **Incremental Checkpoint 3.0:**
-- Validate feature recommendations
-- Test bottleneck detection
-- Measure ordering improvements
+- [ ] Validate recommendations don't break builds
+- [ ] Measure feature reduction impact (target: 10-20% faster)
+- [ ] Test bottleneck accuracy (>90% correct)
+- [ ] Document found limitations
 
 ---
 
 ## Phase 4: CI/CD Integration (v0.5.0)
-**Timeline: 1 week** (reduced from 2 weeks)  
+**Timeline: 1 week**  
 **Goal: CI/CD optimization**
 **Branch: `implementation/phase-4`**
 
+**Prerequisites:**
+- [ ] GitHub Actions workflow created
+- [ ] Test repositories prepared
+- [ ] CI access tokens configured
+
 ### 4.1 CI Environment Detection
+
+**Branch: `1-ci-detection`**
+
 ```rust
 // src/ci.rs
 use ci_info::{is_ci, get};
-
-// ci_info detects:
-- GitHub Actions, GitLab CI, Jenkins
-- CircleCI, Travis, Azure DevOps
-- 20+ CI systems automatically
 ```
+
+**Implementation Tasks:**
+- [ ] Integrate ci_info crate
+- [ ] Create CI abstraction layer
+- [ ] Add platform-specific logic
+- [ ] Implement cache key generation
+- [ ] Add environment validation
+
+**Tests Required** (`tests/ci_detection.rs`):
+- [ ] Unit: Detection logic
+- [ ] Integration: Simulated environments
+- [ ] Coverage: All major CI systems
+- [ ] Edge cases: Unknown CI
 
 ### 4.2 CI-Specific Optimization
-```rust
-// Build on ci_info detection
-match ci_info::get().name.as_deref() {
-    Some("GitHub Actions") => github_optimizations(),
-    Some("GitLab CI") => gitlab_optimizations(),
-    _ => generic_ci_optimizations(),
-}
-```
+
+**Branch: `2-ci-optimization`**
+
+**Implementation Tasks:**
+- [ ] GitHub Actions optimization
+- [ ] GitLab CI optimization
+- [ ] Jenkins optimization
+- [ ] Generic CI fallback
+- [ ] Matrix build support
+
+**Tests Required** (`tests/ci_optimization.rs`):
+- [ ] Unit: Optimization rules
+- [ ] Integration: Real CI configs
+- [ ] Matrix: Multiple targets
+- [ ] Performance: Cache effectiveness
 
 ### 4.3 Metrics Export
-```rust
-// src/metrics.rs
-use serde_json;  // For JSON export
-use csv;         // For CSV export
 
-// Simple serialization of:
-- Build times (from cargo --timings)
-- Cache stats (from sccache)
-- System metrics (from sysinfo)
-```
+**Branch: `3-metrics-export`**
 
-**Deliverables:**
-- [ ] ci_info integration
-- [ ] Platform-specific optimizations
-- [ ] Metrics serialization
-- [ ] Tests: CI simulation
+**Implementation Tasks:**
+- [ ] JSON export format
+- [ ] CSV export format
+- [ ] CI-specific formats
+- [ ] Metrics aggregation
+- [ ] Trend analysis
+
+**Tests Required** (`tests/metrics_export.rs`):
+- [ ] Unit: Serialization
+- [ ] Integration: Real metrics
+- [ ] Format: Valid JSON/CSV
+- [ ] Performance: Large datasets
 
 **Incremental Checkpoint 4.0:**
-- Test on real CI systems
-- Validate detection accuracy
-- Verify metrics format
+- [ ] Test on real CI (GitHub Actions minimum)
+- [ ] Validate cache keys (no collisions)
+- [ ] Verify metrics accuracy
+- [ ] Measure CI speedup (target: 30-50%)
 
 ---
 
@@ -297,51 +536,73 @@ use csv;         // For CSV export
 **Branch: `implementation/phase-5`**
 
 ### 5.1 Web Dashboard
+
+**Branch: `1-dashboard`**
+
 ```rust
 // src/dashboard/mod.rs
 use axum::{Router, routing::get};
 use minijinja::Environment;
 use tower_http::services::ServeDir;
-
-// Lightweight dashboard:
-- Axum for web server
-- Minijinja for templates
-- Chart.js (CDN) for graphs
-- Local-only by default (127.0.0.1)
 ```
+
+**Implementation Tasks:**
+- [ ] Create axum web server
+- [ ] Design dashboard UI
+- [ ] Implement API endpoints
+- [ ] Add real-time updates
+- [ ] Ensure local-only by default
+
+**Tests Required** (`tests/dashboard.rs`):
+- [ ] Unit: Route handlers
+- [ ] Integration: Full server
+- [ ] Security: Local-only binding
+- [ ] UI: Template rendering
 
 ### 5.2 Performance Budgets
-```rust
-// src/budget.rs
-use figment::Provider;  // Reuse config system
 
-// Simple threshold checking:
-- Parse budget config
-- Compare with metrics
-- Generate warnings
-```
+**Branch: `2-budgets`**
+
+**Implementation Tasks:**
+- [ ] Budget configuration parser
+- [ ] Threshold checking logic
+- [ ] Alert generation
+- [ ] Trend analysis
+- [ ] Report generation
+
+**Tests Required** (`tests/budgets.rs`):
+- [ ] Unit: Threshold logic
+- [ ] Integration: Real builds
+- [ ] Boundary: Edge values
+- [ ] Alerts: Proper triggering
 
 ### 5.3 Data Persistence
+
+**Branch: `3-persistence`**
+
 ```rust
 // src/storage.rs
-use rusqlite;  // Embedded SQLite
-
-// Store:
-- Build history
-- Metrics over time
-- Regression baselines
+use rusqlite;
 ```
 
-**Deliverables:**
-- [ ] Axum-based dashboard
-- [ ] SQLite metrics storage
-- [ ] Budget enforcement
-- [ ] Tests: Web routes, storage
+**Implementation Tasks:**
+- [ ] Database schema design
+- [ ] Migration system
+- [ ] Data insertion logic
+- [ ] Query optimization
+- [ ] Cleanup/rotation
+
+**Tests Required** (`tests/storage.rs`):
+- [ ] Unit: CRUD operations
+- [ ] Integration: Full workflow
+- [ ] Performance: Large datasets
+- [ ] Migration: Schema updates
 
 **Incremental Checkpoint 5.0:**
-- Dashboard usability test
-- Performance data accuracy
-- Budget enforcement validation
+- [ ] Dashboard usability testing
+- [ ] Performance data accuracy validation
+- [ ] Budget enforcement verification
+- [ ] Load testing (1000+ builds)
 
 ---
 
@@ -350,142 +611,173 @@ use rusqlite;  // Embedded SQLite
 **Goal: Production release**
 **Branch: `implementation/phase-6`**
 
-### 6.1 Platform Optimizations
+### 6.1 Platform-Specific Optimizations
+
+**Branch: `1-platform-specific`**
+
 ```rust
 // src/platform/mod.rs
-use sysinfo::System;
-
-// Platform-specific using sysinfo:
 #[cfg(windows)]
-mod windows;  // Defender, MSVC
+mod windows;
 #[cfg(unix)]
-mod unix;     // tmpfs, linker selection
+mod unix;
 #[cfg(macos)]
-mod macos;    // Universal binaries
+mod macos;
 ```
+
+**Implementation Tasks:**
+- [ ] Windows: Defender exclusions
+- [ ] Linux: tmpfs optimization
+- [ ] macOS: Universal binary support
+- [ ] Platform detection logic
+- [ ] Fallback strategies
+
+**Tests Required** (`tests/platform.rs`):
+- [ ] Platform-specific tests
+- [ ] Cross-platform compatibility
+- [ ] Fallback testing
+- [ ] Performance validation
 
 ### 6.2 Documentation
-- User guide with examples
-- Configuration reference
-- Troubleshooting guide
-- Crate documentation
+
+**Branch: `2-documentation`**
+
+**Deliverables:**
+- [ ] User guide (doc/user-guide.md)
+- [ ] Configuration reference (doc/config-reference.md)
+- [ ] Troubleshooting guide (doc/troubleshooting.md)
+- [ ] Migration guide (doc/migration.md)
+- [ ] API documentation (rustdoc)
 
 ### 6.3 Release Engineering
-```rust
-// Using existing tools:
-- cargo-dist for binary releases
-- cargo-release for version management
-- GitHub Actions for CI/CD
-```
 
-**Final Deliverables:**
-- [ ] Platform modules
-- [ ] Complete documentation
-- [ ] Release automation
+**Branch: `3-release`**
+
+**Implementation Tasks:**
+- [ ] cargo-dist configuration
+- [ ] GitHub Actions release workflow
+- [ ] Binary packaging scripts
+- [ ] Installation scripts
 - [ ] Package manager configs
 
----
-
-## Dependency Health Monitoring
-
-### Critical Dependencies to Track
-| Crate | Purpose | Health Check |
-|-------|---------|--------------|
-| sysinfo | Hardware detection | Monthly updates, 5M+ downloads |
-| figment | Configuration | Rocket maintains it |
-| cargo_metadata | Project analysis | Official, stable |
-| guppy | Dependency analysis | Facebook maintains it |
-| ci_info | CI detection | Active development |
-| axum | Web framework | Tokio team maintains it |
-
-### Maintenance Strategy
-- Review dependency updates monthly
-- Security advisories via `cargo audit`
-- Consider alternatives if crate abandoned
-- Minimize transitive dependencies
+**Final Checklist:**
+- [ ] All tests passing
+- [ ] Documentation complete
+- [ ] Benchmarks documented
+- [ ] CHANGELOG updated
+- [ ] Version tagged
+- [ ] Binaries built
+- [ ] crates.io published
 
 ---
 
-## Revised Timeline
+## Testing Strategy Application
 
-| Phase | Version | Duration | Crates Used |
-|-------|---------|----------|-------------|
-| 1. Core Infrastructure | v0.2.0 | 1 week | figment, sysinfo, cargo_metadata, guppy |
-| 2. Build Optimization | v0.3.0 | 1 week | num_cpus, which |
-| 3. Dependency Opt | v0.4.0 | 1 week | guppy, cargo --timings |
-| 4. CI/CD Integration | v0.5.0 | 1 week | ci_info, serde_json, csv |
-| 5. Monitoring | v0.6.0 | 1.5 weeks | axum, minijinja, rusqlite |
-| 6. Platform & Polish | v1.0.0 | 1.5 weeks | platform-specific |
+### Test Coverage Requirements
+- **New code**: Minimum 100% coverage
+- **Overall**: Minimum 100% coverage
+- **Critical paths**: 100% coverage
 
-**Total: 7 weeks** (reduced from 12 weeks!)
+### Test Execution Per Phase
+```bash
+# Run all tests
+cargo test
 
----
+# Run with coverage
+cargo tarpaulin --out Html
 
-## What We Actually Build
+# Run benchmarks
+cargo bench
 
-### Our Core Value (Not Available in Crates)
-1. **Optimization Logic** - The rules for what to optimize when
-2. **Integration Layer** - Tying all the crates together
-3. **Percentage Calculations** - Our "75%" feature
-4. **Profile Templates** - Pre-configured optimization profiles
-5. **Rollback System** - Safety mechanism for changes
-6. **Auto-configuration** - Zero-config optimization logic
+# Run clippy
+cargo clippy -- -D warnings
 
-### We DON'T Build
-- ❌ System info detection (use sysinfo)
-- ❌ Config file parsing (use figment/toml_edit)
-- ❌ Dependency graphs (use guppy)
-- ❌ CI detection (use ci_info)
-- ❌ Web server (use axum)
-- ❌ Template engine (use minijinja)
+# Security audit
+cargo audit
+```
+
+### Platform Testing Matrix
+- **Windows**: Windows 10/11, MSVC toolchain
+- **Linux**: Ubuntu 22.04, Debian 12, Arch
+- **macOS**: Latest two versions
+- **CI**: All platforms via GitHub Actions
 
 ---
 
-## Benefits of This Approach
+## Performance Baselines & Targets
 
-### Time Savings
-- **Original estimate**: 12 weeks
-- **Revised estimate**: 7 weeks
-- **Time saved**: 5 weeks (42% reduction!)
+### Baseline Project
+```bash
+cargo new bench_project
+cd bench_project
+# Add dependencies
+cargo add tokio serde clap
+```
 
-### Quality Improvements
-- **Battle-tested code**: Millions of downloads
-- **Cross-platform**: Already solved OS differences
-- **Maintained**: Active communities
-- **Documented**: Existing docs and examples
-- **Secure**: Audited by many users
-
-### Focus Benefits
-- More time on our unique value proposition
-- Less time debugging low-level issues
-- Faster to market
-- Easier maintenance
+### Success Metrics
+- **Build Time**: 50-70% reduction vs baseline
+- **Cache Hit Rate**: >80% in development
+- **Analysis Time**: <100ms for most projects
+- **Dashboard Load**: <500ms
 
 ---
 
-## Risk Mitigation
+## Risk Management
 
-### Dependency Risks
-- **Abandoned crates**: Have backup alternatives identified
-- **Breaking changes**: Pin major versions
-- **Security issues**: Regular `cargo audit`
-- **License conflicts**: All chosen crates are MIT/Apache-2.0
+### Dependency Monitoring
+```bash
+# Weekly checks
+cargo outdated
+cargo audit
+cargo tree --duplicates
+```
 
-### Integration Risks
-- **API changes**: Wrap in abstraction layers
-- **Performance overhead**: Benchmark each integration
-- **Feature gaps**: Contribute upstream or extend locally
+### Performance Regression Prevention
+- Benchmark every merge
+- Compare to previous version
+- Block merge if >10% regression
 
 ---
 
-## Next Steps
+## Timeline Summary
 
-1. **Add dependencies to Cargo.toml**:
+| Phase | Version | Duration | Key Deliverables |
+|-------|---------|----------|------------------|
+| 1. Core | v0.2.0 | 1 week | Config, Hardware, Analysis |
+| 2. Build | v0.3.0 | 1 week | Parallel, Cache, Timing |
+| 3. Dependencies | v0.4.0 | 1 week | Features, Bottlenecks, Order |
+| 4. CI/CD | v0.5.0 | 1 week | Detection, Optimization, Metrics |
+| 5. Monitoring | v0.6.0 | 1.5 weeks | Dashboard, Budgets, Storage |
+| 6. Polish | v1.0.0 | 1.5 weeks | Platform, Docs, Release |
+
+**Total: 7 weeks**
+
+---
+
+## Next Immediate Steps
+
+1. **Verify prerequisites**:
    ```bash
+   # Check test strategy exists
+   test -f doc/Comprehensive-Test-Strategy.md || echo "Create test strategy"
+   
+   # Install initial dependencies
    cargo add sysinfo num_cpus figment toml_edit cargo_metadata guppy ci_info
    ```
-2. **Create abstraction modules** for each external crate
-3. **Start Phase 1** with proven libraries
-4. **Set up dependency monitoring** (cargo-audit, cargo-outdated)
 
-This approach gets us to market **5 weeks faster** with **higher quality** by standing on the shoulders of giants in the Rust ecosystem!
+2. **Create Phase 1 branch**:
+   ```bash
+   git checkout -b implementation/phase-1
+   ```
+
+3. **Start Section 1.1**:
+   ```bash
+   git checkout -b 1-config-management
+   ```
+
+4. **Set up test infrastructure**:
+   ```bash
+   mkdir -p tests issue/benchmark/001
+   ```
+
+5. **Begin implementation** following the workflow above
