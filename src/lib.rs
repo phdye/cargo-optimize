@@ -38,6 +38,15 @@ pub use mvp::auto_configure_mvp as auto_configure;
 /// - Backup and rollback capabilities
 pub mod config;
 
+/// Hardware detection and system information module.
+/// 
+/// Provides platform-aware hardware detection with:
+/// - CPU and memory information
+/// - Disk space detection
+/// - Percentage-based calculations for resource allocation
+/// - Fallback values for failure scenarios
+pub mod hardware;
+
 /// Utility functions for output and common operations.
 /// 
 /// Provides helper functions for displaying messages to users.
