@@ -52,6 +52,7 @@ guppy = "0.17"  # Facebook's dependency graph analyzer
 # Utilities
 which = "6.0"  # Find executables
 anyhow = "1.0"  # Error handling
+thiserror = "1.0"  # Error derive macro
 tracing = "0.1"  # Logging/diagnostics
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }  # For logging setup
 serde = { version = "1.0", features = ["derive"] }  # Serialization

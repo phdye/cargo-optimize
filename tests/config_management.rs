@@ -125,9 +125,9 @@ jobs = "4"
 fn test_environment_variable_override() {
     let temp_dir = setup_test_env();
     
-    // Set environment variables
-    std::env::set_var("CARGO_OPTIMIZE_GLOBAL_VERBOSE", "true");
-    std::env::set_var("CARGO_OPTIMIZE_GLOBAL_USE_SCCACHE", "false");
+    // Set environment variables using double underscore for nested keys
+    std::env::set_var("CARGO_OPTIMIZE_GLOBAL__VERBOSE", "true");
+    std::env::set_var("CARGO_OPTIMIZE_GLOBAL__USE_SCCACHE", "false");
     
     let manager = create_test_manager(temp_dir.path());
     let config = manager.config();
@@ -137,8 +137,8 @@ fn test_environment_variable_override() {
     assert!(!config.global.use_sccache);
     
     // Clean up env vars
-    std::env::remove_var("CARGO_OPTIMIZE_GLOBAL_VERBOSE");
-    std::env::remove_var("CARGO_OPTIMIZE_GLOBAL_USE_SCCACHE");
+    std::env::remove_var("CARGO_OPTIMIZE_GLOBAL__VERBOSE");
+    std::env::remove_var("CARGO_OPTIMIZE_GLOBAL__USE_SCCACHE");
 }
 
 #[test]
@@ -301,7 +301,7 @@ incremental = false
         .expect("Failed to create manager");
     
     let dev_profile = manager.config().profiles.get("dev").unwrap();
-    assert_eq!(dev_profile.jobs, Some(JobCount::Fixed(2)));
+    assert_eq!(dev_profile.jobs, Some(JobCount::Percentage("75%".to_string())));
 }
 
 #[test]

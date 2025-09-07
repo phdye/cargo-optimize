@@ -17,6 +17,31 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use toml_edit::{DocumentMut, Item, Table};
 use tracing::{debug, info};
+use thiserror::Error;
+
+/// Configuration error types
+#[derive(Debug, Error)]
+pub enum ConfigError {
+    /// I/O error
+    #[error("I/O error: {0}")]
+    IoError(#[from] std::io::Error),
+    
+    /// Profile not found
+    #[error("Profile not found: {0}")]
+    ProfileNotFound(String),
+    
+    /// Backup not found
+    #[error("Backup not found: {0}")]
+    BackupNotFound(PathBuf),
+    
+    /// Parse error
+    #[error("Parse error: {0}")]
+    ParseError(String),
+    
+    /// Other error
+    #[error("Configuration error: {0}")]
+    Other(#[from] anyhow::Error),
+}
 
 /// Main configuration structure for cargo-optimize
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -97,7 +122,28 @@ impl JobCount {
             }
         }
     }
-    
+}
+
+// Implement comparison traits for JobCount
+impl PartialOrd for JobCount {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.to_count().cmp(&other.to_count()))
+    }
+}
+
+impl PartialEq<usize> for JobCount {
+    fn eq(&self, other: &usize) -> bool {
+        self.to_count() == *other
+    }
+}
+
+impl PartialOrd<usize> for JobCount {
+    fn partial_cmp(&self, other: &usize) -> Option<std::cmp::Ordering> {
+        Some(self.to_count().cmp(other))
+    }
+}
+
+impl JobCount {
     /// Parse from a string value
     pub fn parse(s: &str) -> Result<Self> {
         if s.ends_with('%') {
@@ -263,6 +309,7 @@ impl ConfigManager {
             // 2. Merge with cargo-optimize.toml if it exists
             .merge(Toml::file("cargo-optimize.toml").nested())
             // 3. Override with environment variables (CARGO_OPTIMIZE_*)
+            // Use double underscore for nested keys (e.g., CARGO_OPTIMIZE_GLOBAL__VERBOSE)
             .merge(Env::prefixed("CARGO_OPTIMIZE_").split("__"));
         
         // Extract the configuration
@@ -468,8 +515,11 @@ impl ConfigManager {
     
     /// Create a backup of the current configuration
     pub fn create_backup(&self) -> Result<PathBuf> {
-        // Ensure backup directory exists
-        fs::create_dir_all(&self.config.backup.backup_dir)
+        // Ensure backup directory exists (including parent directories)
+        let backup_dir = &self.config.backup.backup_dir;
+        
+        // Create all parent directories if they don't exist
+        fs::create_dir_all(backup_dir)
             .context("Failed to create backup directory")?;
         
         let timestamp = SystemTime::now()
@@ -478,7 +528,7 @@ impl ConfigManager {
             .as_secs();
         
         let backup_name = format!("config_backup_{}.toml", timestamp);
-        let backup_path = self.config.backup.backup_dir.join(backup_name);
+        let backup_path = backup_dir.join(backup_name);
         
         // Copy current config if it exists
         if self.config_path.exists() {
@@ -636,6 +686,81 @@ impl Config {
         
         Ok(())
     }
+    
+    /// Get a profile by name
+    pub fn get_profile(&self, name: &str) -> Option<&Profile> {
+        self.profiles.get(name)
+    }
+    
+    /// Get a mutable profile by name
+    pub fn get_profile_mut(&mut self, name: &str) -> Option<&mut Profile> {
+        self.profiles.get_mut(name)
+    }
+    
+    /// Generate linker configuration for Cargo
+    pub fn generate_linker_config(&self, linker: &str) -> Result<String, ConfigError> {
+        // Validate linker is supported
+        let supported_linkers = if cfg!(target_os = "windows") {
+            vec!["rust-lld", "lld-link.exe", "lld", "link.exe"]
+        } else if cfg!(target_os = "linux") {
+            vec!["mold", "lld", "gold", "ld"]
+        } else if cfg!(target_os = "macos") {
+            vec!["zld", "lld", "ld64"]
+        } else {
+            vec!["lld"]
+        };
+        
+        if !supported_linkers.contains(&linker) {
+            return Err(ConfigError::Other(anyhow::anyhow!(
+                "Unsupported linker '{}' for current platform", linker
+            )));
+        }
+        
+        let mut config = String::new();
+        
+        // Add target-specific configuration
+        if cfg!(target_os = "windows") {
+            config.push_str("[target.x86_64-pc-windows-msvc]\n");
+            config.push_str(&format!("linker = \"{}\"\n", linker));
+            
+            // Add rustflags for specific linkers
+            match linker {
+                "rust-lld" => {
+                    config.push_str("rustflags = [\"-C\", \"link-arg=-fuse-ld=lld\"]\n");
+                }
+                "lld-link.exe" => {
+                    config.push_str("rustflags = [\"-C\", \"linker=lld-link.exe\"]\n");
+                }
+                _ => {}
+            }
+        } else if cfg!(target_os = "linux") {
+            config.push_str("[target.x86_64-unknown-linux-gnu]\n");
+            config.push_str(&format!("linker = \"clang\"\n"));
+            
+            // Add rustflags for specific linkers
+            match linker {
+                "mold" => {
+                    config.push_str("rustflags = [\"-C\", \"link-arg=-fuse-ld=mold\"]\n");
+                }
+                "lld" => {
+                    config.push_str("rustflags = [\"-C\", \"link-arg=-fuse-ld=lld\"]\n");
+                }
+                "gold" => {
+                    config.push_str("rustflags = [\"-C\", \"link-arg=-fuse-ld=gold\"]\n");
+                }
+                _ => {}
+            }
+        } else if cfg!(target_os = "macos") {
+            config.push_str("[target.x86_64-apple-darwin]\n");
+            config.push_str(&format!("linker = \"{}\"\n", linker));
+            
+            if linker == "zld" {
+                config.push_str("rustflags = [\"-C\", \"link-arg=-fuse-ld=zld\"]\n");
+            }
+        }
+        
+        Ok(config)
+    }
 }
 
 impl Default for Config {
@@ -664,7 +789,7 @@ impl Config {
             cache: CacheSettings {
                 enabled: true,
                 cache_dir: None,
-                max_size: None,
+                max_size: Some(CacheSize::Megabytes(1024)),
                 cache_type: CacheType::Sccache,
             },
             target_dir: None,
@@ -692,7 +817,12 @@ impl Config {
             linker: None,
             jobs: None,
             incremental: Some(false),
-            rustflags: vec![],
+            rustflags: vec![
+                "-C".to_string(),
+                "opt-level=3".to_string(),
+                "-C".to_string(), 
+                "lto=true".to_string(),
+            ],
             cache: CacheSettings {
                 enabled: true,
                 cache_dir: None,

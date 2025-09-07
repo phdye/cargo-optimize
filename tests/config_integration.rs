@@ -51,13 +51,13 @@ fn test_profile_mutations() {
     
     // Modify dev profile
     if let Some(dev) = config.get_profile_mut("dev") {
-        dev.jobs = Some(8);
+        dev.jobs = Some(JobCount::Fixed(8));
         dev.incremental = Some(false);
     }
     
     // Verify changes
     let dev = config.get_profile("dev").expect("Dev profile should exist");
-    assert_eq!(dev.jobs, Some(8));
+    assert_eq!(dev.jobs, Some(JobCount::Fixed(8)));
     assert_eq!(dev.incremental, Some(false));
 }
 
@@ -71,7 +71,8 @@ fn test_hardware_optimization_basic() {
     // Verify job counts were set
     for profile in config.profiles.values() {
         assert!(profile.jobs.is_some());
-        assert!(profile.jobs.unwrap() > 0);
+        let job_count = profile.jobs.as_ref().unwrap();
+        assert!(job_count > &0usize);
     }
 }
 
@@ -130,7 +131,7 @@ fn test_cache_settings() {
     let dev = config.get_profile("dev").unwrap();
     assert!(dev.cache.enabled);
     assert_eq!(dev.cache.cache_type, CacheType::Sccache);
-    assert_eq!(dev.cache.max_size_mb, Some(1024));
+    assert_eq!(dev.cache.max_size, Some(CacheSize::Megabytes(1024)));
     
     // Test bench profile cache (disabled)
     let bench = config.get_profile("bench").unwrap();
