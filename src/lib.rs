@@ -31,30 +31,12 @@ pub use mvp::auto_configure_mvp as auto_configure;
 
 /// Configuration module for build optimization settings.
 /// 
-/// Currently contains placeholder implementations that will be
-/// replaced with full functionality in future versions.
-pub mod config {
-    /// Main configuration structure for cargo-optimize.
-    /// 
-    /// This will eventually hold all optimization settings.
-    #[derive(Debug, Default)]
-    pub struct Config;
-    
-    /// Optimization level for build configuration.
-    /// 
-    /// Determines how aggressively optimizations are applied.
-    #[derive(Debug)]
-    pub enum OptimizationLevel {
-        /// Conservative optimization - minimal changes, maximum compatibility.
-        Conservative,
-        /// Balanced optimization - good performance with reasonable safety.
-        Balanced,
-        /// Aggressive optimization - maximum performance, may affect stability.
-        Aggressive,
-    }
-
-
-}
+/// Provides enhanced configuration management with support for:
+/// - Safe merging of existing configurations
+/// - Multi-file config support (.cargo/config.toml + cargo-optimize.toml)
+/// - Profile system (dev/test/release/bench)
+/// - Backup and rollback capabilities
+pub mod config;
 
 /// Utility functions for output and common operations.
 /// 

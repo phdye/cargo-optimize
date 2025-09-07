@@ -36,7 +36,7 @@ path = "src/bin/cargo-test-summary.rs"
 long-running = []  # Enable long-running tests
 
 [dependencies]
-# None needed for MVP library!
+num_cpus = "1.16"  # For detecting CPU cores
 regex = "1.10"  # For cargo-test-summary nextest output parsing
 
 [dev-dependencies]
