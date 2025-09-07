@@ -47,6 +47,7 @@ num_cpus = "1.16"  # CPU detection (used by Rust itself)
 
 # Project analysis
 cargo_metadata = "0.18"  # Official Cargo project parser
+guppy = "0.17"  # Facebook's dependency graph analyzer
 
 # Utilities
 which = "6.0"  # Find executables
@@ -57,6 +58,9 @@ serde = { version = "1.0", features = ["derive"] }  # Serialization
 
 # For cargo-test-summary
 regex = "1.10"  # For cargo-test-summary nextest output parsing
+
+# For analysis module
+serde_json = "1.0"  # JSON serialization for metadata conversion
 
 [dev-dependencies]
 # Test dependencies for comprehensive testing

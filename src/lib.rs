@@ -47,6 +47,16 @@ pub mod config;
 /// - Fallback values for failure scenarios
 pub mod hardware;
 
+/// Project analysis module using cargo_metadata and guppy.
+/// 
+/// Provides comprehensive project analysis including:
+/// - Workspace structure detection
+/// - Dependency graph analysis
+/// - Feature analysis and optimization suggestions
+/// - Build target detection
+/// - Build metrics collection
+pub mod analysis;
+
 /// Utility functions for output and common operations.
 /// 
 /// Provides helper functions for displaying messages to users.
@@ -73,18 +83,6 @@ pub mod utils {
 /// Currently a placeholder that will be expanded with full
 /// optimization logic in future versions.
 pub struct Optimizer;
-
-/// Project analysis module for understanding build complexity.
-/// 
-/// Will eventually analyze project structure and dependencies
-/// to make intelligent optimization decisions.
-pub mod analyzer {
-    /// Analysis results for a Rust project.
-    /// 
-    /// Will contain metrics about project size, dependencies,
-    /// and build complexity.
-    pub struct ProjectAnalysis;
-}
 
 /// Build cache configuration and management.
 /// 
