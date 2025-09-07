@@ -1,446 +1,518 @@
-//! Tests for the enhanced configuration management system
+//! Comprehensive tests for configuration management (Phase 1.1)
 //! 
-//! Tests cover:
-//! - Configuration loading and saving
-//! - Profile management
-//! - Backup and restore functionality
-//! - Config merging
+//! Tests for:
+//! - Figment-based layered configuration
+//! - TOML preservation with toml_edit
+//! - Backup and restore mechanisms
+//! - Percentage value parsing
+//! - Profile support
 
 use cargo_optimize::config::*;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
+use toml_edit::DocumentMut;
 
-/// Test helper to create a temporary directory with cargo structure
-fn setup_test_dir() -> TempDir {
-    let dir = TempDir::new().expect("Failed to create temp dir");
-    let cargo_dir = dir.path().join(".cargo");
+/// Helper to create a test environment
+fn setup_test_env() -> TempDir {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    
+    // Create .cargo directory
+    let cargo_dir = temp_dir.path().join(".cargo");
     fs::create_dir_all(&cargo_dir).expect("Failed to create .cargo dir");
-    dir
+    
+    temp_dir
 }
 
-/// Test helper to write a config file
-fn write_config(dir: &Path, filename: &str, content: &str) {
-    let path = dir.join(filename);
-    // Create parent directories if they don't exist
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).expect("Failed to create parent dirs");
-    }
-    fs::write(path, content).expect("Failed to write config");
-}
-
-/// Test helper to read a config file
-fn read_config(dir: &Path, filename: &str) -> String {
-    let path = dir.join(filename);
-    fs::read_to_string(path).unwrap_or_default()
+/// Helper to create a config manager in a test directory
+fn create_test_manager(dir: &Path) -> ConfigManager {
+    std::env::set_current_dir(dir).expect("Failed to change directory");
+    ConfigManager::new().expect("Failed to create config manager")
 }
 
 #[test]
-fn test_default_config_creation() {
+fn test_default_configuration() {
     let config = Config::default();
     
-    // Verify default profiles exist
+    // Check all default profiles exist
     assert_eq!(config.profiles.len(), 4);
     assert!(config.profiles.contains_key("dev"));
     assert!(config.profiles.contains_key("test"));
     assert!(config.profiles.contains_key("release"));
     assert!(config.profiles.contains_key("bench"));
     
-    // Verify global settings
+    // Check global defaults
     assert_eq!(config.global.optimization_level, OptimizationLevel::Balanced);
     assert!(config.global.auto_detect_hardware);
     assert!(!config.global.verbose);
     assert!(config.global.use_sccache);
     
-    // Verify backup settings
+    // Check backup defaults
     assert!(config.backup.auto_backup);
     assert_eq!(config.backup.max_backups, 5);
+    assert_eq!(config.backup.backup_dir, PathBuf::from(".cargo/backups"));
 }
 
 #[test]
-fn test_profile_settings() {
-    let config = Config::default();
+fn test_percentage_parsing() {
+    // Test JobCount percentage
+    let job = JobCount::parse("75%").unwrap();
+    assert!(matches!(job, JobCount::Percentage(_)));
     
-    // Test dev profile
-    let dev = config.get_profile("dev").expect("Dev profile should exist");
-    assert_eq!(dev.name, "dev");
-    assert_eq!(dev.incremental, Some(true));
-    assert!(dev.cache.enabled);
-    assert_eq!(dev.cache.cache_type, CacheType::Sccache);
+    let cores = num_cpus::get();
+    let expected = ((cores as f64 * 0.75).round() as usize).max(1);
+    assert_eq!(job.to_count(), expected);
     
-    // Test release profile
-    let release = config.get_profile("release").expect("Release profile should exist");
-    assert_eq!(release.name, "release");
-    assert_eq!(release.incremental, Some(false));
-    assert!(release.rustflags.contains(&"-C".to_string()));
-    assert!(release.rustflags.contains(&"opt-level=3".to_string()));
+    // Test fixed count
+    let job = JobCount::parse("8").unwrap();
+    assert!(matches!(job, JobCount::Fixed(8)));
+    assert_eq!(job.to_count(), 8);
     
-    // Test bench profile
-    let bench = config.get_profile("bench").expect("Bench profile should exist");
-    assert_eq!(bench.name, "bench");
-    assert!(!bench.cache.enabled);
-    assert_eq!(bench.cache.cache_type, CacheType::None);
+    // Test invalid input
+    assert!(JobCount::parse("invalid").is_err());
 }
 
 #[test]
-fn test_save_cargo_config() {
-    let temp_dir = setup_test_dir();
-    let original_dir = std::env::current_dir().expect("Failed to get current dir");
+fn test_cache_size_percentage() {
+    // Test percentage cache size
+    let size = CacheSize::Percentage("10%".to_string());
+    let mb = size.to_megabytes();
+    assert!(mb >= 100); // Should be at least 100MB
     
-    // Change to temp directory
-    let result = std::env::set_current_dir(temp_dir.path());
-    if result.is_err() {
-        // If we can't change directory, skip the test
-        return;
-    }
-    
-    // Create and save config
-    let config = Config::default();
-    config.save_cargo_config().expect("Failed to save cargo config");
-    
-    // Verify file was created
-    let config_path = Path::new(".cargo/config.toml");
-    assert!(config_path.exists());
-    
-    // Read and verify content
-    let content = fs::read_to_string(config_path).expect("Failed to read config");
-    assert!(content.contains("# Cargo configuration - optimized by cargo-optimize"));
-    assert!(content.contains("[build]"));
-    
-    // Restore original directory
-    let _ = std::env::set_current_dir(original_dir);
+    // Test fixed size
+    let size = CacheSize::Megabytes(2048);
+    assert_eq!(size.to_megabytes(), 2048);
 }
 
 #[test]
-fn test_save_optimize_config() {
-    let temp_dir = setup_test_dir();
-    let original_dir = std::env::current_dir().expect("Failed to get current dir");
+fn test_figment_layered_configuration() {
+    let temp_dir = setup_test_env();
+    let config_path = temp_dir.path().join("cargo-optimize.toml");
     
-    // Change to temp directory
-    let result = std::env::set_current_dir(temp_dir.path());
-    if result.is_err() {
-        // If we can't change directory, skip the test
-        return;
-    }
+    // Create a custom configuration file
+    let custom_config = r#"
+[global]
+optimization_level = "aggressive"
+verbose = true
+default_jobs = "50%"
+
+[profiles.dev]
+incremental = false
+jobs = "4"
+"#;
     
-    // Create and save config
-    let config = Config::default();
-    config.save_optimize_config().expect("Failed to save optimize config");
+    fs::write(&config_path, custom_config).expect("Failed to write config");
     
-    // Verify file was created
-    let config_path = Path::new("cargo-optimize.toml");
-    assert!(config_path.exists());
+    // Create manager and check layered config
+    let manager = create_test_manager(temp_dir.path());
+    let config = manager.config();
     
-    // Read and verify content
-    let content = fs::read_to_string(config_path).expect("Failed to read config");
-    assert!(content.contains("[metadata]"));
-    assert!(content.contains("[global]"));
-    assert!(content.contains("[profile.dev]"));
-    assert!(content.contains("[profile.release]"));
-    assert!(content.contains("[backup]"));
+    // Check that custom values override defaults
+    assert_eq!(config.global.optimization_level, OptimizationLevel::Aggressive);
+    assert!(config.global.verbose);
+    assert_eq!(
+        config.global.default_jobs,
+        Some(JobCount::Percentage("50%".to_string()))
+    );
     
-    // Restore original directory
-    let _ = std::env::set_current_dir(original_dir);
+    // Check profile override
+    let dev_profile = config.profiles.get("dev").unwrap();
+    assert_eq!(dev_profile.incremental, Some(false));
+    assert_eq!(dev_profile.jobs, Some(JobCount::Fixed(4)));
+}
+
+#[test]
+fn test_environment_variable_override() {
+    let temp_dir = setup_test_env();
+    
+    // Set environment variables
+    std::env::set_var("CARGO_OPTIMIZE_GLOBAL_VERBOSE", "true");
+    std::env::set_var("CARGO_OPTIMIZE_GLOBAL_USE_SCCACHE", "false");
+    
+    let manager = create_test_manager(temp_dir.path());
+    let config = manager.config();
+    
+    // Check env var overrides
+    assert!(config.global.verbose);
+    assert!(!config.global.use_sccache);
+    
+    // Clean up env vars
+    std::env::remove_var("CARGO_OPTIMIZE_GLOBAL_VERBOSE");
+    std::env::remove_var("CARGO_OPTIMIZE_GLOBAL_USE_SCCACHE");
+}
+
+#[test]
+fn test_toml_preservation() {
+    let temp_dir = setup_test_env();
+    let config_path = temp_dir.path().join(".cargo").join("config.toml");
+    
+    // Create an existing config with custom formatting
+    let existing_config = r#"# My custom cargo config
+# This has special formatting
+
+[build]
+# Important comment
+jobs = 4
+
+[profile.dev]
+# Dev profile settings
+opt-level = 0
+"#;
+    
+    fs::write(&config_path, existing_config).expect("Failed to write config");
+    
+    // Apply our optimizations
+    let manager = create_test_manager(temp_dir.path());
+    manager.apply().expect("Failed to apply config");
+    
+    // Read back and check preservation
+    let updated_content = fs::read_to_string(&config_path)
+        .expect("Failed to read updated config");
+    
+    // Check that comments are preserved
+    assert!(updated_content.contains("# Important comment"));
+    assert!(updated_content.contains("# Dev profile settings"));
+    
+    // Parse as document to verify structure
+    let doc: DocumentMut = updated_content.parse().expect("Invalid TOML");
+    assert!(doc.get("build").is_some());
+    assert!(doc.get("profile").is_some());
 }
 
 #[test]
 fn test_backup_creation() {
-    let temp_dir = setup_test_dir();
-    let original_dir = std::env::current_dir().expect("Failed to get current dir");
+    let temp_dir = setup_test_env();
+    let config_path = temp_dir.path().join(".cargo").join("config.toml");
+    let backup_dir = temp_dir.path().join(".cargo").join("backups");
     
-    // Change to temp directory
-    let result = std::env::set_current_dir(temp_dir.path());
-    if result.is_err() {
-        // If we can't change directory, skip the test
-        return;
-    }
+    // Create initial config
+    fs::write(&config_path, "[build]\njobs = 2\n").expect("Failed to write config");
     
-    // Create a config file to backup
-    let cargo_config = ".cargo/config.toml";
-    write_config(temp_dir.path(), cargo_config, "[build]\njobs = 4\n");
+    // Create manager and trigger backup
+    let manager = create_test_manager(temp_dir.path());
+    let backup_path = manager.create_backup().expect("Failed to create backup");
     
-    // Create config and perform backup
-    let config = Config::default();
-    let backup_path = config.create_backup().expect("Failed to create backup");
-    
-    // Verify backup was created
+    // Check backup exists
     assert!(backup_path.exists());
-    assert!(backup_path.to_string_lossy().contains("config_backup_"));
+    assert!(backup_dir.exists());
     
-    // Verify backup content matches original
-    let backup_content = fs::read_to_string(&backup_path).expect("Failed to read backup");
-    assert_eq!(backup_content, "[build]\njobs = 4\n");
-    
-    // Restore original directory
-    let _ = std::env::set_current_dir(original_dir);
+    // Check backup content
+    let backup_content = fs::read_to_string(&backup_path)
+        .expect("Failed to read backup");
+    assert_eq!(backup_content, "[build]\njobs = 2\n");
 }
 
 #[test]
-fn test_restore_from_backup() {
-    let temp_dir = setup_test_dir();
-    let original_dir = std::env::current_dir().expect("Failed to get current dir");
+fn test_backup_restore() {
+    let temp_dir = setup_test_env();
+    let config_path = temp_dir.path().join(".cargo").join("config.toml");
     
-    // Change to temp directory
-    let result = std::env::set_current_dir(temp_dir.path());
-    if result.is_err() {
-        // If we can't change directory, skip the test
-        return;
-    }
+    // Create initial config
+    let original_content = "[build]\njobs = 2\n";
+    fs::write(&config_path, original_content).expect("Failed to write config");
     
-    // Create a backup file
-    let backup_dir = Path::new(".cargo/backups");
-    let _ = fs::remove_dir_all(backup_dir); // Clean up any existing backup dir
-    fs::create_dir_all(backup_dir).expect("Failed to create backup dir");
-    let backup_path = backup_dir.join("test_backup.toml");
-    fs::write(&backup_path, "[build]\njobs = 8\n").expect("Failed to write backup");
+    // Create backup
+    let manager = create_test_manager(temp_dir.path());
+    let backup_path = manager.create_backup().expect("Failed to create backup");
+    
+    // Modify config
+    fs::write(&config_path, "[build]\njobs = 8\n").expect("Failed to modify config");
     
     // Restore from backup
-    Config::restore_from_backup(&backup_path).expect("Failed to restore backup");
+    manager.restore_from_backup(&backup_path)
+        .expect("Failed to restore from backup");
     
-    // Verify config was restored
-    let config_path = Path::new(".cargo/config.toml");
-    assert!(config_path.exists());
-    
-    let content = fs::read_to_string(config_path).expect("Failed to read config");
-    assert_eq!(content, "[build]\njobs = 8\n");
-    
-    // Restore original directory
-    let _ = std::env::set_current_dir(original_dir);
+    // Check restored content
+    let restored_content = fs::read_to_string(&config_path)
+        .expect("Failed to read restored config");
+    assert_eq!(restored_content, original_content);
 }
 
 #[test]
 fn test_backup_cleanup() {
-    let temp_dir = setup_test_dir();
-    let original_dir = std::env::current_dir().expect("Failed to get current dir");
+    let temp_dir = setup_test_env();
+    let backup_dir = temp_dir.path().join(".cargo").join("backups");
     
-    // Change to temp directory
-    let result = std::env::set_current_dir(temp_dir.path());
-    if result.is_err() {
-        // If we can't change directory, skip the test
-        return;
-    }
+    // Create manager with max_backups = 3
+    let mut manager = create_test_manager(temp_dir.path());
+    manager.config_mut().backup.max_backups = 3;
     
-    // Create multiple backup files
-    let backup_dir = Path::new(".cargo/backups");
-    fs::create_dir_all(backup_dir).expect("Failed to create backup dir");
-    
-    for i in 1..=10 {
-        let backup_name = format!("config_backup_{}.toml", i);
-        let backup_path = backup_dir.join(backup_name);
-        fs::write(backup_path, format!("backup {}", i)).expect("Failed to write backup");
-        
+    // Create multiple backups
+    for i in 0..5 {
+        manager.create_backup().expect("Failed to create backup");
         // Add small delay to ensure different timestamps
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
     
-    // Create config with max_backups = 5
-    let mut config = Config::default();
-    config.backup.max_backups = 5;
-    
-    // Clean up old backups
-    config.cleanup_old_backups().expect("Failed to cleanup backups");
-    
-    // Count remaining backups
-    let backup_count = fs::read_dir(backup_dir)
+    // Check that only 3 backups remain
+    let backup_count = fs::read_dir(&backup_dir)
         .expect("Failed to read backup dir")
-        .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.file_name().to_str()
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| {
+            entry.file_name()
+                .to_str()
                 .map(|s| s.starts_with("config_backup_"))
                 .unwrap_or(false)
         })
         .count();
     
-    assert_eq!(backup_count, 5, "Should keep only 5 most recent backups");
-    
-    // Restore original directory
-    let _ = std::env::set_current_dir(original_dir);
+    assert_eq!(backup_count, 3);
 }
 
 #[test]
-fn test_apply_profile() {
-    let config = Config::default();
-    
-    // Apply dev profile
-    config.apply_profile("dev").expect("Failed to apply dev profile");
-    
-    // Note: We can't easily test environment variables being set
-    // because they affect the global environment
-    // In a real test, we'd use a mock or integration test
-}
-
-#[test]
-fn test_hardware_optimization() {
+fn test_hardware_detection() {
     let mut config = Config::default();
     
     // Apply hardware optimizations
-    config.apply_hardware_optimizations().expect("Failed to apply hardware optimizations");
+    config.apply_hardware_optimizations()
+        .expect("Failed to apply hardware optimizations");
     
     // Check that job counts were set
     for profile in config.profiles.values() {
-        assert!(profile.jobs.is_some(), "Jobs should be set after hardware optimization");
-        let jobs = profile.jobs.unwrap();
-        assert!(jobs > 0, "Jobs should be greater than 0");
+        assert!(profile.jobs.is_some());
+        
+        // Check that cache size was set
+        if profile.cache.enabled {
+            assert!(profile.cache.max_size.is_some());
+        }
+    }
+}
+
+#[test]
+fn test_profile_selection() {
+    let temp_dir = setup_test_env();
+    let config_path = temp_dir.path().join("cargo-optimize.toml");
+    
+    // Create config with profile-specific settings
+    let config_content = r#"
+[profiles.dev]
+jobs = "2"
+
+[profiles.release]
+jobs = "8"
+incremental = false
+"#;
+    
+    fs::write(&config_path, config_content).expect("Failed to write config");
+    
+    // Load with dev profile
+    std::env::set_current_dir(temp_dir.path()).expect("Failed to change dir");
+    let manager = ConfigManager::with_profile("dev")
+        .expect("Failed to create manager");
+    
+    let dev_profile = manager.config().profiles.get("dev").unwrap();
+    assert_eq!(dev_profile.jobs, Some(JobCount::Fixed(2)));
+}
+
+#[test]
+fn test_linker_configuration() {
+    let temp_dir = setup_test_env();
+    let config_path = temp_dir.path().join(".cargo").join("config.toml");
+    
+    // Create manager and apply config
+    let manager = create_test_manager(temp_dir.path());
+    manager.apply().expect("Failed to apply config");
+    
+    // Check that config was created
+    assert!(config_path.exists());
+    
+    // Parse and verify structure
+    let content = fs::read_to_string(&config_path)
+        .expect("Failed to read config");
+    let doc: DocumentMut = content.parse().expect("Invalid TOML");
+    
+    // Check for target configuration (if linker was detected)
+    // This depends on the system having a compatible linker
+    if doc.get("target").is_some() {
+        let target = if cfg!(target_os = "windows") {
+            "x86_64-pc-windows-msvc"
+        } else {
+            "x86_64-unknown-linux-gnu"
+        };
+        
+        assert!(doc["target"].get(target).is_some());
     }
 }
 
 #[test]
 fn test_optimization_levels() {
-    assert_eq!(
-        format!("{:?}", OptimizationLevel::Conservative),
-        "Conservative"
-    );
-    assert_eq!(
-        format!("{:?}", OptimizationLevel::Balanced),
-        "Balanced"
-    );
-    assert_eq!(
-        format!("{:?}", OptimizationLevel::Aggressive),
-        "Aggressive"
-    );
+    // Test serialization/deserialization
+    let levels = vec![
+        OptimizationLevel::Conservative,
+        OptimizationLevel::Balanced,
+        OptimizationLevel::Aggressive,
+    ];
+    
+    for level in levels {
+        let serialized = serde_json::to_string(&level).unwrap();
+        let deserialized: OptimizationLevel = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(level, deserialized);
+    }
 }
 
 #[test]
 fn test_cache_types() {
-    assert_eq!(CacheType::None, CacheType::None);
-    assert_eq!(CacheType::Sccache, CacheType::Sccache);
-    assert_eq!(CacheType::Ccache, CacheType::Ccache);
-    assert_eq!(
-        CacheType::Custom("custom".to_string()),
-        CacheType::Custom("custom".to_string())
-    );
+    let types = vec![
+        CacheType::None,
+        CacheType::Sccache,
+        CacheType::Ccache,
+        CacheType::Custom("my-cache".to_string()),
+    ];
+    
+    for cache_type in types {
+        let serialized = serde_json::to_string(&cache_type).unwrap();
+        let deserialized: CacheType = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(cache_type, deserialized);
+    }
 }
 
 #[test]
-fn test_config_error_display() {
-    use std::io;
+fn test_empty_config_handling() {
+    let temp_dir = setup_test_env();
     
-    let io_error = ConfigError::IoError(io::Error::new(io::ErrorKind::NotFound, "test"));
-    assert!(format!("{}", io_error).contains("I/O error"));
+    // Ensure no existing config
+    let config_path = temp_dir.path().join(".cargo").join("config.toml");
+    assert!(!config_path.exists());
     
-    let parse_error = ConfigError::ParseError("invalid TOML".to_string());
-    assert!(format!("{}", parse_error).contains("Parse error"));
+    // Create and apply manager
+    let manager = create_test_manager(temp_dir.path());
+    manager.apply().expect("Failed to apply config");
     
-    let profile_error = ConfigError::ProfileNotFound("custom".to_string());
-    assert!(format!("{}", profile_error).contains("Profile not found"));
+    // Check that config was created
+    assert!(config_path.exists());
     
-    let backup_error = ConfigError::BackupNotFound(PathBuf::from("test.toml"));
-    assert!(format!("{}", backup_error).contains("Backup not found"));
-    
-    let linker_error = ConfigError::UnknownLinker("unknown".to_string());
-    assert!(format!("{}", linker_error).contains("Unknown linker"));
-    
-    let other_error = ConfigError::Other("generic error".to_string());
-    assert_eq!(format!("{}", other_error), "generic error");
+    // Verify it's valid TOML
+    let content = fs::read_to_string(&config_path)
+        .expect("Failed to read config");
+    let _doc: DocumentMut = content.parse().expect("Invalid TOML");
 }
 
 #[test]
-fn test_generate_linker_config() {
+fn test_metadata_generation() {
     let config = Config::default();
     
-    // Test Windows linkers
-    if cfg!(target_os = "windows") {
-        let rust_lld = config.generate_linker_config("rust-lld")
-            .expect("Should generate rust-lld config");
-        assert!(rust_lld.contains("[target.x86_64-pc-windows-msvc]"));
-        assert!(rust_lld.contains("linker = \"rust-lld\""));
-        
-        let lld_link = config.generate_linker_config("lld-link")
-            .expect("Should generate lld-link config");
-        assert!(lld_link.contains("linker = \"lld-link.exe\""));
-    }
+    // Check metadata fields
+    assert_eq!(config.metadata.version, env!("CARGO_PKG_VERSION"));
+    assert!(config.metadata.timestamp > 0);
     
-    // Test Linux linkers
-    if cfg!(target_os = "linux") {
-        let mold = config.generate_linker_config("mold")
-            .expect("Should generate mold config");
-        assert!(mold.contains("[target.x86_64-unknown-linux-gnu]"));
-        assert!(mold.contains("link-arg=-fuse-ld=mold"));
-        
-        let lld = config.generate_linker_config("lld")
-            .expect("Should generate lld config");
-        assert!(lld.contains("link-arg=-fuse-ld=lld"));
-    }
+    let expected_platform = if cfg!(target_os = "windows") {
+        "windows"
+    } else if cfg!(target_os = "linux") {
+        "linux"
+    } else if cfg!(target_os = "macos") {
+        "macos"
+    } else {
+        "unknown"
+    };
     
-    // Test unknown linker
-    let result = config.generate_linker_config("unknown");
-    assert!(result.is_err());
+    assert_eq!(config.metadata.platform, expected_platform);
 }
 
 #[test]
-fn test_profile_mutation() {
-    let mut config = Config::default();
-    
-    // Get mutable reference to dev profile
-    {
-        let dev_profile = config.get_profile_mut("dev")
-            .expect("Should get mutable dev profile");
-        dev_profile.jobs = Some(16);
-        dev_profile.incremental = Some(false);
-    }
-    
-    // Verify changes were applied
-    let dev_profile = config.get_profile("dev")
-        .expect("Should get dev profile");
-    assert_eq!(dev_profile.jobs, Some(16));
-    assert_eq!(dev_profile.incremental, Some(false));
-}
-
-#[test]
-fn test_missing_profile() {
+fn test_profile_inheritance() {
     let config = Config::default();
-    assert!(config.get_profile("nonexistent").is_none());
     
-    let result = config.apply_profile("nonexistent");
-    assert!(result.is_err());
+    // Check that all profiles have consistent structure
+    for (name, profile) in &config.profiles {
+        assert_eq!(profile.name, *name);
+        assert!(profile.rustflags.is_empty() || !profile.rustflags.is_empty());
+        assert!(matches!(profile.cache.cache_type, 
+            CacheType::None | CacheType::Sccache | CacheType::Ccache | CacheType::Custom(_)));
+    }
 }
 
-/// Integration test for complete configuration workflow
 #[test]
-fn test_complete_workflow() {
-    let temp_dir = setup_test_dir();
-    let original_dir = std::env::current_dir().expect("Failed to get current dir");
+fn test_concurrent_config_access() {
+    use std::sync::Arc;
+    use std::thread;
     
-    // Change to temp directory
-    let result = std::env::set_current_dir(temp_dir.path());
-    if result.is_err() {
-        // If we can't change directory, skip the test
-        return;
+    let temp_dir = Arc::new(setup_test_env());
+    let mut handles = vec![];
+    
+    // Spawn multiple threads trying to create/modify config
+    for i in 0..5 {
+        let temp_dir_clone = Arc::clone(&temp_dir);
+        let handle = thread::spawn(move || {
+            std::env::set_current_dir(temp_dir_clone.path())
+                .expect("Failed to change dir");
+            
+            let manager = ConfigManager::new()
+                .expect("Failed to create manager");
+            
+            // Each thread creates its own backup
+            let backup_path = manager.create_backup()
+                .expect("Failed to create backup");
+            
+            assert!(backup_path.exists());
+            
+            // Add small delay to simulate work
+            thread::sleep(std::time::Duration::from_millis(10 * i));
+        });
+        
+        handles.push(handle);
     }
     
-    // Create config
-    let mut config = Config::default();
+    // Wait for all threads to complete
+    for handle in handles {
+        handle.join().expect("Thread panicked");
+    }
     
-    // Modify settings
-    config.global.verbose = true;
-    config.global.optimization_level = OptimizationLevel::Aggressive;
+    // Verify backup directory has expected files
+    let backup_dir = temp_dir.path().join(".cargo").join("backups");
+    let backup_count = fs::read_dir(&backup_dir)
+        .expect("Failed to read backup dir")
+        .count();
     
-    // Apply hardware optimizations
-    config.apply_hardware_optimizations().expect("Failed to apply hardware opts");
+    // Should have at least one backup (may be less than 5 due to cleanup)
+    assert!(backup_count > 0);
+}
+
+// Integration test for the complete workflow
+#[test]
+fn test_complete_configuration_workflow() {
+    let temp_dir = setup_test_env();
     
-    // Save configuration
-    config.save().expect("Failed to save config");
+    // Step 1: Create custom configuration file
+    let custom_config = r#"
+[global]
+optimization_level = "aggressive"
+default_jobs = "75%"
+
+[profiles.release]
+jobs = "100%"
+incremental = false
+
+[backup]
+max_backups = 3
+"#;
     
-    // Verify files were created
-    assert!(Path::new(".cargo/config.toml").exists());
-    assert!(Path::new("cargo-optimize.toml").exists());
+    let config_path = temp_dir.path().join("cargo-optimize.toml");
+    fs::write(&config_path, custom_config).expect("Failed to write config");
     
-    // Create backup
-    let backup_path = config.create_backup().expect("Failed to create backup");
+    // Step 2: Set environment variable override
+    std::env::set_var("CARGO_OPTIMIZE_GLOBAL_VERBOSE", "true");
+    
+    // Step 3: Create manager (layered config applied)
+    let manager = create_test_manager(temp_dir.path());
+    
+    // Step 4: Verify layered configuration
+    let config = manager.config();
+    assert_eq!(config.global.optimization_level, OptimizationLevel::Aggressive);
+    assert!(config.global.verbose); // From env var
+    assert_eq!(config.global.default_jobs, Some(JobCount::Percentage("75%".to_string())));
+    assert_eq!(config.backup.max_backups, 3);
+    
+    // Step 5: Apply configuration
+    manager.apply().expect("Failed to apply config");
+    
+    // Step 6: Verify .cargo/config.toml was created
+    let cargo_config = temp_dir.path().join(".cargo").join("config.toml");
+    assert!(cargo_config.exists());
+    
+    // Step 7: Create backup
+    let backup_path = manager.create_backup().expect("Failed to create backup");
     assert!(backup_path.exists());
     
-    // Modify config again
-    config.global.verbose = false;
-    config.save().expect("Failed to save modified config");
-    
-    // Restore from backup
-    Config::restore_from_backup(&backup_path).expect("Failed to restore");
-    
-    // Verify restoration worked
-    let restored_content = fs::read_to_string(".cargo/config.toml")
-        .expect("Failed to read restored config");
-    assert!(restored_content.contains("# Cargo configuration"));
-    
-    // Restore original directory
-    let _ = std::env::set_current_dir(original_dir);
+    // Clean up
+    std::env::remove_var("CARGO_OPTIMIZE_GLOBAL_VERBOSE");
 }

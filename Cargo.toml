@@ -36,7 +36,26 @@ path = "src/bin/cargo-test-summary.rs"
 long-running = []  # Enable long-running tests
 
 [dependencies]
-num_cpus = "1.16"  # For detecting CPU cores
+# Core dependencies for Phase 1.1 Configuration Management
+figment = { version = "0.10", features = ["toml", "env"] }  # Layered configuration
+toml_edit = "0.22"  # Preserve TOML formatting when editing
+toml = "0.8"  # For serialization
+
+# System information for hardware detection
+sysinfo = "0.30"  # Comprehensive system/hardware info
+num_cpus = "1.16"  # CPU detection (used by Rust itself)
+
+# Project analysis
+cargo_metadata = "0.18"  # Official Cargo project parser
+
+# Utilities
+which = "6.0"  # Find executables
+anyhow = "1.0"  # Error handling
+tracing = "0.1"  # Logging/diagnostics
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }  # For logging setup
+serde = { version = "1.0", features = ["derive"] }  # Serialization
+
+# For cargo-test-summary
 regex = "1.10"  # For cargo-test-summary nextest output parsing
 
 [dev-dependencies]
