@@ -1,13 +1,15 @@
 #!/usr/bin/env cargo
 
-//! cargo-test-summary - A formatted test result summary for cargo nextest
+//! cargo-summary - A formatted test result summary for cargo nextest
 //! 
 //! This cargo subcommand runs nextest and formats the output
 //! in a clean, organized summary format with accurate test counts.
 //! 
-//! Usage: cargo test-summary [nextest arguments]
+//! Usage: cargo summary [nextest arguments]
 
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::io::{BufRead, BufReader};
+use std::thread;
 use std::collections::HashSet;
 use regex::Regex;
 
@@ -34,38 +36,70 @@ impl TestResult {
 }
 
 fn main() {
-    // Skip the first arg if it's "test-summary" (cargo passes subcommand name)
+    // When cargo runs this as a subcommand, it may pass "summary" as the first argument
+    // We need to filter that out
     let args: Vec<String> = std::env::args()
-        .skip(1)
-        .filter(|arg| arg != "test-summary")
+        .skip(1)  // Skip the binary name
+        .filter(|arg| arg != "summary" && arg != "test-summary")
         .collect();
     
-    // Run nextest and capture both stdout and stderr
-    let output = Command::new("cargo")
-        .arg("nextest")
-        .arg("run")
-        .args(&args)
-        .output()
-        .expect("Failed to run cargo nextest");
+    // Build the nextest command with default arguments
+    let mut cmd = Command::new("cargo");
+    cmd.arg("nextest");
+    cmd.arg("run");
     
-    // Convert output to string - nextest outputs to stderr
-    let stderr_str = String::from_utf8_lossy(&output.stderr);
-    let stdout_str = String::from_utf8_lossy(&output.stdout);
-    
-    // Process stderr first (where nextest output goes), then stdout
-    let mut results = parse_nextest_output(&stderr_str);
-    if results.passed.is_empty() && results.failed.is_empty() {
-        // Try stdout if stderr had no results
-        results = parse_nextest_output(&stdout_str);
+    // Always include --run-ignored default unless user specifies otherwise
+    if !args.iter().any(|arg| arg.contains("--run-ignored")) {
+        cmd.arg("--run-ignored");
+        cmd.arg("default");
     }
     
-    // Format and print test summary output
-    print_test_summary(&results);
+    // Add any user-provided arguments
+    cmd.args(&args);
+    
+    // Configure for line-buffered output streaming
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+    
+    // Spawn the process
+    let mut child = cmd.spawn()
+        .expect("Failed to run cargo nextest");
+    
+    // Get the stdout and stderr handles
+    let stdout = child.stdout.take().expect("Failed to get stdout");
+    let stderr = child.stderr.take().expect("Failed to get stderr");
+    
+    // Create readers for line-by-line reading
+    let stdout_reader = BufReader::new(stdout);
+    let stderr_reader = BufReader::new(stderr);
+    
+    // Stream stdout in a separate thread
+    let stdout_thread = thread::spawn(move || {
+        for line in stdout_reader.lines() {
+            if let Ok(line) = line {
+                println!("{}", line);
+            }
+        }
+    });
+    
+    // Stream stderr (where nextest output actually goes)
+    for line in stderr_reader.lines() {
+        if let Ok(line) = line {
+            eprintln!("{}", line);
+        }
+    }
+    
+    // Wait for stdout thread to finish
+    stdout_thread.join().expect("stdout thread panicked");
+    
+    // Wait for the child process to finish and get exit code
+    let status = child.wait().expect("Failed to wait for child process");
     
     // Exit with the same code as nextest
-    std::process::exit(output.status.code().unwrap_or(1));
+    std::process::exit(status.code().unwrap_or(1));
 }
 
+// Keep the parsing functions for potential future use
 fn parse_nextest_output(output: &str) -> TestResults {
     let mut results = TestResults::default();
     let mut seen_tests = HashSet::new();

@@ -51,7 +51,7 @@ Bash script that parses standard cargo test output.
 
 **Usage:**
 ```bash
-bash scripts/cargo-test-summary.sh
+bash scripts/cargo-summary.sh
 ```
 
 **Output:**
@@ -119,7 +119,7 @@ For daily development, add these aliases to your shell:
 ```bash
 # In ~/.bashrc or ~/.bash_profile
 alias ct='cargo nextest run'
-alias cts='bash scripts/cargo-test-summary.sh'
+alias cts='bash scripts/cargo-summary.sh'
 ```
 
 Then simply use:

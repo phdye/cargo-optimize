@@ -69,5 +69,5 @@ cargo test --no-fail-fast -- -Z unstable-options --format json 2>/dev/null | {
 # fall back to the simple parser version:
 if [ $? -ne 0 ]; then
     echo "JSON output not available, using simple parser..."
-    bash scripts/cargo-test-summary.sh
+    bash scripts/cargo-summary.sh
 fi

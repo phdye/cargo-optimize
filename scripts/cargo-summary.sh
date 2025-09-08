@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# cargo-test-summary.sh - Parses cargo test output for a unified summary
+# cargo-summary.sh - Parses cargo test output for a unified summary
 # Works with standard cargo test, no additional tools needed
 
 if [ ! -f "Cargo.toml" ] || [ ! -d "src" ] || [ ! -d "issue" ]; then

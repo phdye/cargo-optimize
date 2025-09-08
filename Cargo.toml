@@ -28,8 +28,8 @@ path = "src/lib.rs"
 # path = "src/bin/debug_detection.rs"
 
 [[bin]]
-name = "cargo-test-summary"
-path = "src/bin/cargo-test-summary.rs"
+name = "cargo-summary"
+path = "src/bin/cargo-summary.rs"
 
 [features]
 # Test features
@@ -57,8 +57,8 @@ tracing = "0.1"  # Logging/diagnostics
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }  # For logging setup
 serde = { version = "1.0", features = ["derive"] }  # Serialization
 
-# For cargo-test-summary
-regex = "1.10"  # For cargo-test-summary nextest output parsing
+# For cargo-summary
+regex = "1.10"  # For cargo-summary nextest output parsing
 
 # For analysis module
 serde_json = "1.0"  # JSON serialization for metadata conversion
