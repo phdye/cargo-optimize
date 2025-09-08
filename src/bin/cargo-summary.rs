@@ -14,6 +14,7 @@ use std::collections::HashSet;
 use regex::Regex;
 
 #[derive(Debug, Default)]
+#[allow(dead_code)]
 struct TestResults {
     passed: Vec<TestResult>,
     failed: Vec<TestResult>,
@@ -22,6 +23,7 @@ struct TestResults {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct TestResult {
     status: String,
     time: String,
@@ -30,6 +32,7 @@ struct TestResult {
 }
 
 impl TestResult {
+    #[allow(dead_code)]
     fn unique_id(&self) -> String {
         format!("{}::{}", self.binary, self.test_name)
     }
@@ -100,6 +103,7 @@ fn main() {
 }
 
 // Keep the parsing functions for potential future use
+#[allow(dead_code)]
 fn parse_nextest_output(output: &str) -> TestResults {
     let mut results = TestResults::default();
     let mut seen_tests = HashSet::new();
@@ -186,6 +190,7 @@ fn parse_nextest_output(output: &str) -> TestResults {
     results
 }
 
+#[allow(dead_code)]
 fn print_test_summary(results: &TestResults) {
     println!("========================== test session results ==========================");
     

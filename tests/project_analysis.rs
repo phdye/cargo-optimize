@@ -7,11 +7,10 @@
 //! - Build metrics calculation
 
 use cargo_optimize::analysis::{
-    analyze_project, ProjectAnalysis, ImpactLevel,
-    BottleneckInfo, FeatureSuggestion,
+    analyze_project, ImpactLevel,
 };
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tempfile::TempDir;
 
 /// Helper to create a test project with given Cargo.toml content
@@ -248,7 +247,7 @@ alloc = []
     assert!(analysis.features.total_features > 0);
     
     // Should have suggestions for tokio
-    let has_tokio_suggestion = analysis.features.suggestions
+    let _has_tokio_suggestion = analysis.features.suggestions
         .iter()
         .any(|s| s.package == "tokio");
     

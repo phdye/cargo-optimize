@@ -3,6 +3,7 @@
 //! These tests verify core functionality without relying on complex directory operations
 
 use cargo_optimize::config::*;
+use std::path::PathBuf;
 
 #[test]
 fn test_config_basics() {
@@ -171,7 +172,8 @@ fn test_backup_configuration() {
     // Test defaults
     assert!(config.backup.auto_backup);
     assert_eq!(config.backup.max_backups, 5);
-    assert_eq!(config.backup.backup_dir.to_string_lossy(), ".cargo/backups");
+    // Use Path for platform-agnostic comparison
+    assert_eq!(config.backup.backup_dir, PathBuf::from(".cargo").join("backups"));
 }
 
 #[test]

@@ -69,6 +69,37 @@ pub fn auto_configure_with_options(config: MvpConfig) {
     }
 }
 
+/// Configure with custom options at a specific base path (for testing and isolated usage)
+pub fn auto_configure_with_options_at(config: MvpConfig, base_path: Option<&Path>) {
+    match detect_best_linker() {
+        Ok(linker) if linker != "default" => {
+            match configure_linker_safe_at(&linker, &config, base_path) {
+                Ok(ConfigResult::Created) => {
+                    println!("cargo-optimize: ✅ Created .cargo/config.toml with {} linker", linker);
+                }
+                Ok(ConfigResult::Updated) => {
+                    println!("cargo-optimize: ✅ Updated .cargo/config.toml to use {} linker", linker);
+                }
+                Ok(ConfigResult::AlreadyOptimized) => {
+                    println!("cargo-optimize: ℹ️  Config already optimized with fast linker");
+                }
+                Ok(ConfigResult::DryRun) => {
+                    println!("cargo-optimize: 🔍 Would configure {} linker (dry run)", linker);
+                }
+                Err(e) => {
+                    eprintln!("cargo-optimize: ❌ Failed to configure linker: {}", e);
+                }
+            }
+        }
+        Ok(_) => {
+            println!("cargo-optimize: ℹ️  No fast linker found - using default");
+        }
+        Err(e) => {
+            eprintln!("cargo-optimize: ❌ Error detecting linker: {}", e);
+        }
+    }
+}
+
 #[derive(Debug)]
 enum ConfigResult {
     Created,
@@ -78,7 +109,13 @@ enum ConfigResult {
 }
 
 fn configure_linker_safe(linker: &str, config: &MvpConfig) -> Result<ConfigResult, Box<dyn std::error::Error>> {
-    let config_dir = Path::new(".cargo");
+    configure_linker_safe_at(linker, config, None)
+}
+
+fn configure_linker_safe_at(linker: &str, config: &MvpConfig, base_path: Option<&Path>) -> Result<ConfigResult, Box<dyn std::error::Error>> {
+    // Use base_path or current directory
+    let base = base_path.map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from("."));
+    let config_dir = base.join(".cargo");
     let config_path = config_dir.join("config.toml");
     
     // Get the new config content for this linker

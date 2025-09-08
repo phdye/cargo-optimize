@@ -9,7 +9,7 @@
 
 use anyhow::{Context, Result};
 use figment::providers::{Env, Format, Toml};
-use figment::{Figment, Profile as FigmentProfile};
+use figment::{Figment};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -95,13 +95,81 @@ pub struct Profile {
 }
 
 /// Job count configuration with percentage support
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(untagged)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum JobCount {
     /// Fixed number of jobs
     Fixed(usize),
     /// Percentage of available cores (e.g., "75%")
     Percentage(String),
+}
+
+// Custom Serialize implementation
+impl Serialize for JobCount {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            JobCount::Fixed(n) => serializer.serialize_u64(*n as u64),
+            JobCount::Percentage(p) => serializer.serialize_str(p),
+        }
+    }
+}
+
+// Custom Deserialize implementation
+impl<'de> Deserialize<'de> for JobCount {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::{self, Visitor};
+        
+        struct JobCountVisitor;
+        
+        impl<'de> Visitor<'de> for JobCountVisitor {
+            type Value = JobCount;
+            
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("a number or a percentage string")
+            }
+            
+            fn visit_u64<E>(self, value: u64) -> Result<JobCount, E>
+            where
+                E: de::Error,
+            {
+                Ok(JobCount::Fixed(value as usize))
+            }
+            
+            fn visit_i64<E>(self, value: i64) -> Result<JobCount, E>
+            where
+                E: de::Error,
+            {
+                if value < 0 {
+                    Err(E::custom("job count must be positive"))
+                } else {
+                    Ok(JobCount::Fixed(value as usize))
+                }
+            }
+            
+            fn visit_str<E>(self, value: &str) -> Result<JobCount, E>
+            where
+                E: de::Error,
+            {
+                // Check if it's a percentage
+                if value.ends_with('%') {
+                    Ok(JobCount::Percentage(value.to_string()))
+                } else if let Ok(n) = value.parse::<usize>() {
+                    // Try to parse as a number
+                    Ok(JobCount::Fixed(n))
+                } else {
+                    // If it's not a valid format, assume it's meant to be a percentage
+                    Ok(JobCount::Percentage(value.to_string()))
+                }
+            }
+        }
+        
+        deserializer.deserialize_any(JobCountVisitor)
+    }
 }
 
 impl JobCount {
@@ -146,11 +214,14 @@ impl PartialOrd<usize> for JobCount {
 impl JobCount {
     /// Parse from a string value
     pub fn parse(s: &str) -> Result<Self> {
+        // Check if it ends with % to determine if it's a percentage
         if s.ends_with('%') {
             Ok(JobCount::Percentage(s.to_string()))
         } else if let Ok(n) = s.parse::<usize>() {
+            // If it's a valid number without %, treat it as fixed
             Ok(JobCount::Fixed(n))
         } else {
+            // If it's not a number and doesn't end with %, it's an error
             anyhow::bail!("Invalid job count: {}", s)
         }
     }
@@ -294,7 +365,7 @@ pub struct ConfigMetadata {
 
 /// Configuration manager using Figment for layered config
 pub struct ConfigManager {
-    figment: Figment,
+    _figment: Figment,
     config: Config,
     config_path: PathBuf,
 }
@@ -302,51 +373,116 @@ pub struct ConfigManager {
 impl ConfigManager {
     /// Create a new configuration manager with layered sources
     pub fn new() -> Result<Self> {
+        Self::new_with_env_prefix("CARGO_OPTIMIZE_")
+    }
+    
+    /// Create a new configuration manager with custom environment prefix (for testing)
+    pub fn new_with_env_prefix(env_prefix: &str) -> Result<Self> {
+        // Use current directory as base
+        let base_dir = std::env::current_dir()?;
+        Self::new_with_base_dir(&base_dir, env_prefix)
+    }
+    
+    /// Create a new configuration manager with a specific base directory
+    /// This allows tests to work with isolated directories without changing the process's current directory
+    pub fn new_with_base_dir(base_dir: &Path, env_prefix: &str) -> Result<Self> {
+        // Construct absolute path to cargo-optimize.toml
+        let config_file = base_dir.join("cargo-optimize.toml");
+        
         // Build layered configuration with Figment
-        let figment = Figment::new()
+        let mut figment = Figment::new()
             // 1. Start with defaults
-            .merge(Toml::string(&Self::default_config_toml()))
-            // 2. Merge with cargo-optimize.toml if it exists
-            .merge(Toml::file("cargo-optimize.toml").nested())
-            // 3. Override with environment variables (CARGO_OPTIMIZE_*)
-            // Use double underscore for nested keys (e.g., CARGO_OPTIMIZE_GLOBAL__VERBOSE)
-            .merge(Env::prefixed("CARGO_OPTIMIZE_").split("__"));
+            .merge(Toml::string(&Self::default_config_toml()));
+        
+        // 2. Merge with cargo-optimize.toml if it exists
+        if config_file.exists() {
+            figment = figment.merge(Toml::file(&config_file));
+        }
+        
+        // 3. Override with environment variables
+        // Use double underscore for nested keys (e.g., PREFIX_GLOBAL__VERBOSE)
+        figment = figment.merge(Env::prefixed(env_prefix).split("__"));
         
         // Extract the configuration
         let mut config: Config = figment.extract()
-            .unwrap_or_else(|_| Config::default());
+            .map_err(|e| anyhow::anyhow!("Failed to extract config: {}", e))?;
         
         // Auto-detect hardware if enabled
         if config.global.auto_detect_hardware {
             config.apply_hardware_optimizations()?;
         }
         
+        // Use absolute path for .cargo/config.toml
+        let config_path = base_dir.join(".cargo").join("config.toml");
+        
         Ok(ConfigManager {
-            figment,
+            _figment: figment,
             config,
-            config_path: PathBuf::from(".cargo/config.toml"),
+            config_path,
         })
     }
     
     /// Load configuration from a specific profile
     pub fn with_profile(profile: &str) -> Result<Self> {
-        let figment = Figment::new()
-            .merge(Toml::string(&Self::default_config_toml()))
-            .merge(Toml::file("cargo-optimize.toml").nested())
-            .select(FigmentProfile::from(profile))
-            .merge(Env::prefixed("CARGO_OPTIMIZE_").split("__"));
+        Self::with_profile_and_env_prefix(profile, "CARGO_OPTIMIZE_")
+    }
+    
+    /// Load configuration from a specific profile with custom environment prefix (for testing)
+    pub fn with_profile_and_env_prefix(profile: &str, env_prefix: &str) -> Result<Self> {
+        // Use current directory as base
+        let base_dir = std::env::current_dir()?;
+        Self::with_profile_and_base_dir(profile, &base_dir, env_prefix)
+    }
+    
+    /// Load configuration from a specific profile with a specific base directory
+    pub fn with_profile_and_base_dir(profile: &str, base_dir: &Path, env_prefix: &str) -> Result<Self> {
+        // Construct absolute path to cargo-optimize.toml
+        let config_file = base_dir.join("cargo-optimize.toml");
         
+        // Build layered configuration with Figment
+        let mut figment = Figment::new()
+            // 1. Start with defaults
+            .merge(Toml::string(&Self::default_config_toml()));
+        
+        // 2. Merge with cargo-optimize.toml if it exists
+        if config_file.exists() {
+            figment = figment.merge(Toml::file(&config_file));
+        }
+        
+        // 3. Override with environment variables
+        figment = figment.merge(Env::prefixed(env_prefix).split("__"));
+        
+        // Extract the configuration
         let mut config: Config = figment.extract()
-            .unwrap_or_else(|_| Config::default());
+            .map_err(|e| anyhow::anyhow!("Failed to extract config: {}", e))?;
         
+        // Debug logging to understand what's being loaded
+        debug!("Loading configuration with profile: {}", profile);
+        debug!("Base directory: {:?}", base_dir);
+        debug!("Config file path: {:?}, exists: {}", config_file, config_file.exists());
+        debug!("Auto-detect hardware: {}", config.global.auto_detect_hardware);
+        debug!("Optimization level: {:?}", config.global.optimization_level);
+        
+        // Verify the profile exists
+        if !config.profiles.contains_key(profile) {
+            // If the profile doesn't exist, create a default one
+            let default_profile = Profile::default_for_name(profile.to_string());
+            config.profiles.insert(profile.to_string(), default_profile);
+        }
+        
+        // Auto-detect hardware if enabled
         if config.global.auto_detect_hardware {
             config.apply_hardware_optimizations()?;
         }
         
+        // Use absolute path for .cargo/config.toml
+        let config_path = base_dir.join(".cargo").join("config.toml");
+        
+        // Return the manager with the loaded configuration
         Ok(ConfigManager {
-            figment,
+            _figment: figment,
             config,
-            config_path: PathBuf::from(".cargo/config.toml"),
+            config_path,
         })
     }
     
@@ -358,8 +494,14 @@ impl ConfigManager {
     
     /// Apply configuration to .cargo/config.toml while preserving formatting
     pub fn apply(&self) -> Result<()> {
-        // Create backup if enabled
-        if self.config.backup.auto_backup {
+        // Always ensure .cargo directory exists first
+        if let Some(parent) = self.config_path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("Failed to create parent directory: {:?}", parent))?;
+        }
+        
+        // Create backup if enabled AND if the config file exists
+        if self.config.backup.auto_backup && self.config_path.exists() {
             self.create_backup()?;
         }
         
@@ -370,19 +512,24 @@ impl ConfigManager {
             content.parse::<DocumentMut>()
                 .unwrap_or_else(|_| DocumentMut::new())
         } else {
-            // Ensure .cargo directory exists
-            if let Some(parent) = self.config_path.parent() {
-                fs::create_dir_all(parent)
-                    .context("Failed to create .cargo directory")?;
-            }
             DocumentMut::new()
         };
         
         // Apply our optimizations while preserving existing content
         self.apply_to_document(&mut doc)?;
         
+        // Always write the config file, even if it's minimal
+        // This ensures the file exists after apply() is called
+        let content = doc.to_string();
+        // If document is empty, at least add a comment
+        let final_content = if content.trim().is_empty() {
+            "# Cargo configuration managed by cargo-optimize\n".to_string()
+        } else {
+            content
+        };
+        
         // Write back the modified document with retry for Windows
-        self.write_config_with_retry(&doc.to_string())?;
+        self.write_config_with_retry(&final_content)?;
         
         info!("Configuration applied successfully to {:?}", self.config_path);
         Ok(())
@@ -515,12 +662,32 @@ impl ConfigManager {
     
     /// Create a backup of the current configuration
     pub fn create_backup(&self) -> Result<PathBuf> {
-        // Ensure backup directory exists (including parent directories)
-        let backup_dir = &self.config.backup.backup_dir;
+        // Ensure backup directory exists - handle both absolute and relative paths
+        let backup_dir = if self.config.backup.backup_dir.is_absolute() {
+            self.config.backup.backup_dir.clone()
+        } else {
+            // If relative, it's relative to the config file's parent directory
+            // This ensures backups are created in the right place even when
+            // the current directory is different
+            if let Some(parent) = self.config_path.parent() {
+                // Go up one level from .cargo/config.toml to get the project root
+                if let Some(project_root) = parent.parent() {
+                    project_root.join(&self.config.backup.backup_dir)
+                } else {
+                    parent.join(&self.config.backup.backup_dir)
+                }
+            } else {
+                // Fallback to current directory if we can't determine parent
+                std::env::current_dir()?.join(&self.config.backup.backup_dir)
+            }
+        };
+        
+        // Normalize the path to use proper separators for the platform
+        let backup_dir = PathBuf::from(backup_dir.to_string_lossy().replace('/', std::path::MAIN_SEPARATOR_STR));
         
         // Create all parent directories if they don't exist
-        fs::create_dir_all(backup_dir)
-            .context("Failed to create backup directory")?;
+        fs::create_dir_all(&backup_dir)
+            .with_context(|| format!("Failed to create backup directory: {:?}", backup_dir))?;
         
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -528,17 +695,25 @@ impl ConfigManager {
             .as_secs();
         
         let backup_name = format!("config_backup_{}.toml", timestamp);
-        let backup_path = backup_dir.join(backup_name);
+        let backup_path = backup_dir.join(&backup_name);
+        
+        // Debug: Check current directory and config path
+        debug!("Current dir: {:?}", std::env::current_dir());
+        debug!("Config path: {:?}, exists: {}", self.config_path, self.config_path.exists());
+        debug!("Backup dir: {:?}, exists: {}", backup_dir, backup_dir.exists());
         
         // Copy current config if it exists
         if self.config_path.exists() {
-            fs::copy(&self.config_path, &backup_path)
-                .context("Failed to create backup")?;
+            let content = fs::read_to_string(&self.config_path)
+                .context("Failed to read config file for backup")?;
+            fs::write(&backup_path, &content)
+                .with_context(|| format!("Failed to write backup file: {:?}", backup_path))?;
             info!("Created backup at {:?}", backup_path);
         } else {
             // Create empty backup as marker
             fs::write(&backup_path, "# No previous configuration\n")
-                .context("Failed to create empty backup")?;
+                .with_context(|| format!("Failed to create empty backup: {:?}", backup_path))?;
+            debug!("Config file does not exist at {:?}, created empty backup", self.config_path);
         }
         
         // Clean up old backups
@@ -553,7 +728,18 @@ impl ConfigManager {
             anyhow::bail!("Backup file does not exist: {:?}", backup_path);
         }
         
-        fs::copy(backup_path, &self.config_path)
+        // Read the backup content
+        let backup_content = fs::read_to_string(backup_path)
+            .context("Failed to read backup file")?;
+        
+        // Ensure the directory exists
+        if let Some(parent) = self.config_path.parent() {
+            fs::create_dir_all(parent)
+                .context("Failed to create config directory")?;
+        }
+        
+        // Write the backup content to the config file
+        fs::write(&self.config_path, backup_content)
             .context("Failed to restore from backup")?;
         
         info!("Restored configuration from {:?}", backup_path);
@@ -562,8 +748,34 @@ impl ConfigManager {
     
     /// Clean up old backups, keeping only the most recent ones
     fn cleanup_old_backups(&self) -> Result<()> {
-        let mut backups: Vec<_> = fs::read_dir(&self.config.backup.backup_dir)
-            .context("Failed to read backup directory")?
+        // Handle both absolute and relative backup paths
+        let backup_dir = if self.config.backup.backup_dir.is_absolute() {
+            self.config.backup.backup_dir.clone()
+        } else {
+            // If relative, it's relative to the config file's parent directory
+            if let Some(parent) = self.config_path.parent() {
+                // Go up one level from .cargo/config.toml to get the project root
+                if let Some(project_root) = parent.parent() {
+                    project_root.join(&self.config.backup.backup_dir)
+                } else {
+                    parent.join(&self.config.backup.backup_dir)
+                }
+            } else {
+                // Fallback to current directory if we can't determine parent
+                std::env::current_dir()?.join(&self.config.backup.backup_dir)
+            }
+        };
+        
+        // Normalize the path to use proper separators for the platform
+        let backup_dir = PathBuf::from(backup_dir.to_string_lossy().replace('/', std::path::MAIN_SEPARATOR_STR));
+        
+        // Return early if backup dir doesn't exist
+        if !backup_dir.exists() {
+            return Ok(());
+        }
+        
+        let mut backups: Vec<_> = fs::read_dir(&backup_dir)
+            .with_context(|| format!("Failed to read backup directory: {:?}", backup_dir))?
             .filter_map(|entry| entry.ok())
             .filter(|entry| {
                 entry.file_name()
@@ -735,7 +947,7 @@ impl Config {
             }
         } else if cfg!(target_os = "linux") {
             config.push_str("[target.x86_64-unknown-linux-gnu]\n");
-            config.push_str(&format!("linker = \"clang\"\n"));
+            config.push_str("linker = \"clang\"\n");
             
             // Add rustflags for specific linkers
             match linker {
@@ -770,6 +982,25 @@ impl Default for Config {
             global: GlobalSettings::default(),
             backup: BackupConfig::default(),
             metadata: ConfigMetadata::default(),
+        }
+    }
+}
+
+impl Profile {
+    /// Create a default profile for a given name
+    pub fn default_for_name(name: String) -> Self {
+        Profile {
+            name: name.clone(),
+            linker: None,
+            jobs: None,
+            incremental: if name == "dev" || name == "test" {
+                Some(true)
+            } else {
+                Some(false)
+            },
+            rustflags: Vec::new(),
+            cache: CacheSettings::default(),
+            target_dir: None,
         }
     }
 }
@@ -870,7 +1101,8 @@ impl Default for BackupConfig {
         BackupConfig {
             auto_backup: true,
             max_backups: 5,
-            backup_dir: PathBuf::from(".cargo/backups"),
+            // Use proper path construction to avoid mixed separators
+            backup_dir: PathBuf::from(".cargo").join("backups"),
         }
     }
 }

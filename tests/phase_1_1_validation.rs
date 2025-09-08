@@ -14,9 +14,10 @@ use tempfile::TempDir;
 fn test_phase_1_1_core_functionality() {
     // Test 1: Can create ConfigManager
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    std::env::set_current_dir(temp_dir.path()).expect("Failed to change dir");
+    // No longer change directory - use base_dir instead
     
-    let manager = ConfigManager::new().expect("Failed to create ConfigManager");
+    let manager = ConfigManager::new_with_base_dir(temp_dir.path(), "TEST_PHASE_1_1_")
+        .expect("Failed to create ConfigManager");
     assert!(manager.config().profiles.len() == 4);
     println!("✓ ConfigManager creation works");
     
@@ -65,10 +66,11 @@ optimization_level = "conservative"
 jobs = "50%"
 "#;
     
-    fs::write("cargo-optimize.toml", config_content).expect("Failed to write config");
+    fs::write(temp_dir.path().join("cargo-optimize.toml"), config_content).expect("Failed to write config");
     
     // Create manager - should merge with defaults
-    let manager = ConfigManager::new().expect("Failed to create manager");
+    let manager = ConfigManager::new_with_base_dir(temp_dir.path(), "TEST_PHASE_1_1_FIGMENT_")
+        .expect("Failed to create manager");
     let config = manager.config();
     
     // Check that custom values are loaded
@@ -100,14 +102,17 @@ jobs = 4
 opt-level = 0
 "#;
     
-    fs::write(".cargo/config.toml", existing).expect("Failed to write config");
+    let cargo_dir = temp_dir.path().join(".cargo");
+    fs::create_dir_all(&cargo_dir).expect("Failed to create .cargo");
+    fs::write(cargo_dir.join("config.toml"), existing).expect("Failed to write config");
     
     // Apply our config
-    let manager = ConfigManager::new().expect("Failed to create manager");
+    let manager = ConfigManager::new_with_base_dir(temp_dir.path(), "TEST_PHASE_1_1_TOML_")
+        .expect("Failed to create manager");
     manager.apply().expect("Failed to apply");
     
     // Read back
-    let updated = fs::read_to_string(".cargo/config.toml").expect("Failed to read");
+    let updated = fs::read_to_string(cargo_dir.join("config.toml")).expect("Failed to read");
     
     // Parse to ensure it's valid
     let _doc: toml_edit::DocumentMut = updated.parse().expect("Invalid TOML");
@@ -118,14 +123,16 @@ opt-level = 0
 #[test]
 fn test_phase_1_1_backup_functionality() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    std::env::set_current_dir(temp_dir.path()).expect("Failed to change dir");
+    // No longer change directory - use base_dir instead
     
     // Create initial config
-    fs::create_dir_all(".cargo").expect("Failed to create .cargo");
-    fs::write(".cargo/config.toml", "[build]\njobs = 2\n").expect("Failed to write");
+    let cargo_dir = temp_dir.path().join(".cargo");
+    fs::create_dir_all(&cargo_dir).expect("Failed to create .cargo");
+    fs::write(cargo_dir.join("config.toml"), "[build]\njobs = 2\n").expect("Failed to write");
     
     // Create manager and make backup
-    let manager = ConfigManager::new().expect("Failed to create manager");
+    let manager = ConfigManager::new_with_base_dir(temp_dir.path(), "TEST_PHASE_1_1_BACKUP_")
+        .expect("Failed to create manager");
     let backup_path = manager.create_backup().expect("Failed to create backup");
     
     // Verify backup exists and contains original content
@@ -134,13 +141,13 @@ fn test_phase_1_1_backup_functionality() {
     assert_eq!(backup_content, "[build]\njobs = 2\n");
     
     // Modify config
-    fs::write(".cargo/config.toml", "[build]\njobs = 8\n").expect("Failed to modify");
+    fs::write(cargo_dir.join("config.toml"), "[build]\njobs = 8\n").expect("Failed to modify");
     
     // Restore
     manager.restore_from_backup(&backup_path).expect("Failed to restore");
     
     // Verify restoration
-    let restored = fs::read_to_string(".cargo/config.toml").expect("Failed to read");
+    let restored = fs::read_to_string(cargo_dir.join("config.toml")).expect("Failed to read");
     assert_eq!(restored, "[build]\njobs = 2\n");
     
     println!("✅ Backup and restore functionality works");
@@ -149,10 +156,11 @@ fn test_phase_1_1_backup_functionality() {
 #[test]
 fn test_phase_1_1_profile_support() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    std::env::set_current_dir(temp_dir.path()).expect("Failed to change dir");
+    // No longer change directory - use base_dir instead
     
     // Test default profiles exist
-    let manager = ConfigManager::new().expect("Failed to create manager");
+    let manager = ConfigManager::new_with_base_dir(temp_dir.path(), "TEST_PHASE_1_1_PROFILE_")
+        .expect("Failed to create manager");
     let config = manager.config();
     
     assert!(config.profiles.contains_key("dev"));

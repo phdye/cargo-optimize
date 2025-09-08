@@ -44,18 +44,26 @@ pub struct ProjectAnalysis {
 /// Information about a package
 #[derive(Debug, Clone)]
 pub struct PackageInfo {
+    /// Name of the package
     pub name: String,
+    /// Version of the package
     pub version: String,
+    /// Path to the package
     pub path: PathBuf,
+    /// Number of direct dependencies
     pub dependencies: usize,
+    /// Number of dev dependencies
     pub dev_dependencies: usize,
+    /// Number of build dependencies
     pub build_dependencies: usize,
 }
 
 /// Information about dependency bottlenecks
 #[derive(Debug, Clone)]
 pub struct BottleneckInfo {
+    /// Package name
     pub package: String,
+    /// Package version
     pub version: String,
     /// Number of packages that depend on this
     pub reverse_dependencies: usize,
@@ -66,12 +74,19 @@ pub struct BottleneckInfo {
 /// Build target analysis
 #[derive(Debug, Clone, Default)]
 pub struct TargetAnalysis {
+    /// List of binary targets
     pub binaries: Vec<String>,
+    /// List of library targets
     pub libraries: Vec<String>,
+    /// List of test targets
     pub tests: Vec<String>,
+    /// List of benchmark targets
     pub benches: Vec<String>,
+    /// List of example targets
     pub examples: Vec<String>,
+    /// Number of build scripts
     pub build_scripts: usize,
+    /// Number of procedural macros
     pub proc_macros: usize,
 }
 
@@ -91,16 +106,22 @@ pub struct FeatureAnalysis {
 /// Feature optimization suggestion
 #[derive(Debug, Clone)]
 pub struct FeatureSuggestion {
+    /// Package name
     pub package: String,
+    /// Suggestion description
     pub suggestion: String,
+    /// Impact level of the optimization
     pub impact: ImpactLevel,
 }
 
 /// Impact level of an optimization
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImpactLevel {
+    /// High impact optimization
     High,
+    /// Medium impact optimization
     Medium,
+    /// Low impact optimization
     Low,
 }
 
@@ -493,8 +514,8 @@ fn calculate_chain_length_from(
     Ok(max_depth)
 }
 
-/// Get a summary of the analysis suitable for display
 impl ProjectAnalysis {
+    /// Get a summary of the analysis suitable for display
     pub fn summary(&self) -> String {
         let mut summary = String::new();
         
